@@ -1,0 +1,26 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+*.tsbuildinfo
+
+# local database
+/data/
+
+# env files — never commit keys
+.env
+.env.*
+!.env.example
+
+# vercel
+.vercel

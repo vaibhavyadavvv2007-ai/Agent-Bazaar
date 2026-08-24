@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+/*
+ * Bazaar palette — warm market-lantern tones on deep night.
+ * Defined once as tokens; the visualization and pages both read these.
+ */
+:root {
+  --bazaar-bg: #1a1210;
+  --bazaar-panel: #241a16;
+  --bazaar-line: #3d2c24;
+  --bazaar-ink: #f5ead9;
+  --bazaar-ink-dim: #b39a82;
+  --bazaar-saffron: #f59e0b;
+  --bazaar-marigold: #fb923c;
+  --bazaar-green: #34d399;
+  --bazaar-red: #f87171;
+  --bazaar-blue: #60a5fa;
+}
+
+body {
+  background: var(--bazaar-bg);
+  color: var(--bazaar-ink);
+}
