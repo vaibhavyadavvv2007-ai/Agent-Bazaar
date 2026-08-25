@@ -157,10 +157,10 @@ export type ToolResultBlock = { kind: "tool_result"; tool_use_id: string; tool_n
 export type AssistantBlock = TextBlock | ToolUseBlock;
 
 export type AdapterMessage =
-  | { role: "user" | "assistant"; content: string | (ToolResultBlock | unknown)[] };
+  | { role: "user" | "assistant"; content: string | (ToolResultBlock | AssistantBlock)[] };
 
 export type AdapterCall = (req: {
   system: string;
   tools: { name: string; description: string; parameters: object }[];
   messages: AdapterMessage[];
-}) => Promise<{ blocks: AssistantBlock[]; rawAssistantBlocks: unknown[] }>;
+}) => Promise<{ blocks: AssistantBlock[]; rawAssistantBlocks: AssistantBlock[] }>;

@@ -51,11 +51,9 @@ export function geminiAdapter(model: string = "gemini-2.5-flash"): AdapterCall {
     });
 
     const blocks: AssistantBlock[] = [];
-    const rawParts: Record<string, unknown>[] = [];
     for (const part of response.candidates?.[0]?.content?.parts ?? []) {
       if (part.text) {
         blocks.push({ kind: "text", text: part.text });
-        rawParts.push({ text: part.text });
       }
       if (part.functionCall) {
         blocks.push({
@@ -64,10 +62,11 @@ export function geminiAdapter(model: string = "gemini-2.5-flash"): AdapterCall {
           name: part.functionCall.name ?? "unknown",
           input: (part.functionCall.args ?? {}) as Record<string, unknown>,
         });
-        rawParts.push({ functionCall: part.functionCall });
       }
     }
 
-    return { blocks, rawAssistantBlocks: rawParts };
+    // Neutral block shape — the harness feeds these back as history, and this
+    // adapter maps them to functionCall/functionResponse parts on the way in.
+    return { blocks, rawAssistantBlocks: blocks };
   };
 }

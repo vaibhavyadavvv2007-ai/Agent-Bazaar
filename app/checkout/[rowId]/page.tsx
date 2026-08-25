@@ -76,8 +76,8 @@ export default function CheckoutPage({ params }: { params: Promise<{ rowId: stri
   useEffect(() => {
     const t = setInterval(async () => {
       const res = await fetch(`/api/status?payment_row_id=${rowId}`);
-      const data = (await res.json()) as Status;
-      if (!data.error) setStatus((prev) => ({ ...(prev ?? (data as Status)), ...data }));
+      const data = (await res.json()) as Status & { error?: string };
+      if (!data.error) setStatus((prev) => ({ ...(prev ?? data), ...data }));
     }, 2000);
     return () => clearInterval(t);
   }, [rowId]);

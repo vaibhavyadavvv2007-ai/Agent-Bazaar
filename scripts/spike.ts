@@ -48,8 +48,9 @@ async function buy(agentId: string, skus: { sku: string; qty: number }[], intent
   if (!li.json.mandate?.id) throw new Error(`intent lookup failed (${li.status}): ${JSON.stringify(li.json)}`);
   const c = await api<{ mandate?: { id: string }; total_paise?: number; error?: string }>("POST", "/api/mandates",
     { action: "cart", session_id: s.json.session_id, intent_mandate_id: li.json.mandate.id, items: skus });
-  if (c.status !== 200) throw new Error(`cart failed: ${JSON.stringify(c.json)}`);
-  return { sessionId: s.json.session_id, cartId: c.json.mandate.id, total: c.json.total_paise ?? 0 };
+  const cartId = c.json.mandate?.id;
+  if (c.status !== 200 || !cartId) throw new Error(`cart failed: ${JSON.stringify(c.json)}`);
+  return { sessionId: s.json.session_id, cartId, total: c.json.total_paise ?? 0 };
 }
 
 console.log("\n💸 D2 SPIKE — real test-mode rail\n");

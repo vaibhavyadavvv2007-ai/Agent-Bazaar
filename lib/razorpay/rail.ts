@@ -208,7 +208,7 @@ export async function reconcileByReference(referenceOrRowId: string): Promise<Pa
     return applySettlement(
       terminal.status === "captured" ? "captured" : "failed",
       { reference_id: row.reference_id, rzp_order_id: row.rzp_order_id, rzp_payment_id: terminal.id },
-      { failure_reason: terminal.error_description ?? null, raw: { via: "poll", payment: terminal } }
+      { failure_reason: terminal.error_description ?? undefined, raw: { via: "poll", payment: terminal } }
     );
   }
   return row;

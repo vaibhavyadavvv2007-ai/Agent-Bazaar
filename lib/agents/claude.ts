@@ -24,7 +24,16 @@ export function claudeAdapter(model: string = "claude-haiku-4-5"): AdapterCall {
       })),
       messages: messages.map((m) => ({
         role: m.role,
-        content: m.content as string | Anthropic.ContentBlockParam[],
+        content:
+          typeof m.content === "string"
+            ? m.content
+            : m.content.map((b) =>
+                b.kind === "text"
+                  ? { type: "text" as const, text: b.text }
+                  : b.kind === "tool_use"
+                    ? { type: "tool_use" as const, id: b.id, name: b.name, input: b.input }
+                    : { type: "tool_result" as const, tool_use_id: b.tool_use_id, content: b.content }
+              ),
       })),
     });
 
@@ -35,6 +44,7 @@ export function claudeAdapter(model: string = "claude-haiku-4-5"): AdapterCall {
         blocks.push({ kind: "tool_use", id: block.id, name: block.name, input: block.input as Record<string, unknown> });
     }
 
-    return { blocks, rawAssistantBlocks: response.content };
+    // Neutral block shape — the harness feeds these back as history.
+    return { blocks, rawAssistantBlocks: blocks };
   };
 }
