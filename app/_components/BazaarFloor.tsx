@@ -219,8 +219,8 @@ function eventToCard(e: LiveEvent): Card | null {
       return { key: e.id!, icon: "🔔", title: `Policy GATED ${rupees(amt)} → human`, tone: "border-(--bazaar-marigold)/50 bg-amber-950/40", ago };
     case "policy.deny":
       return { key: e.id!, icon: "⛔", title: `Policy DENIED ${rupees(amt)}`, detail: firstReason(e), tone: "border-red-900 bg-red-950/40", ago };
-    case "payment.link_issued":
-      return { key: e.id!, icon: "🏦", title: `Rails issued · attempt ${String(e.payload?.attempt ?? 1)}`, detail: `order ${shortId(String(e.payload?.rzp_order_id ?? ""))}`, tone: "border-(--bazaar-line) bg-black/20", ago };
+    case "payment.checkout_open":
+      return { key: e.id!, icon: "🏦", title: `Checkout open · attempt ${String(e.payload?.attempt ?? 1)}`, detail: `order ${shortId(String(e.payload?.rzp_order_id ?? ""))}`, tone: "border-(--bazaar-line) bg-black/20", ago };
     case "payment.captured":
       return { key: e.id!, icon: "💰", title: `CAPTURED ${rupees(amt)}`, detail: "webhook verified", tone: "border-emerald-700 bg-emerald-900/50", ago };
     case "payment.failed":

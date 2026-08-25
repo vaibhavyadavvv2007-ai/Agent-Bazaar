@@ -195,7 +195,7 @@ export function storeTools(session: SessionContext) {
         | undefined;
       if (!row) return { error: "unknown payment_row_id" };
 
-      if (row.status === "link_issued") {
+      if (row.status === "checkout_open") {
         await reconcileByReference(row.id); // webhook may be slow; ask the rail directly
         const fresh = await db().execute({ sql: "SELECT status, rzp_payment_id FROM payments WHERE id = ?", args: [row.id] });
         row.status = String(fresh.rows[0]?.status ?? row.status);

@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
 
   if (body.decision === "approved") {
     // Human consent recorded — the gate opens and the rail issues.
-    const result = await issueRailForMandate(String(row.mandate_id));
+    const result = await issueRailForMandate(String(row.mandate_id), req.nextUrl.origin);
     return NextResponse.json({ decision: "approved", rail: result }, { status: result.status === "issued" ? 200 : 500 });
   }
 

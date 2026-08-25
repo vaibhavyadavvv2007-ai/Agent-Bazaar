@@ -24,7 +24,7 @@ type PaymentRow = {
   status: string;
 };
 
-export async function issueRailForMandate(paymentMandateId: string): Promise<CheckoutResult> {
+export async function issueRailForMandate(paymentMandateId: string, _sessionId?: string, origin?: string): Promise<CheckoutResult> {
   const mandate = await getMandate(paymentMandateId);
   if (!mandate || mandate.type !== "PAYMENT") {
     return { status: "rejected", reason: "unknown_payment_mandate", detail: {} };
@@ -47,21 +47,21 @@ export async function issueRailForMandate(paymentMandateId: string): Promise<Che
     notes: { mandate_id: paymentMandateId, session_id: payload.session_id },
   });
 
-  const link = await createPaymentLink({
-    reference_id: paymentRowId,
-    amount_paise: payload.amount_paise,
-    description: `Agent Bazaar cart · attempt ${attempt}`,
-    notes: { mandate_id: paymentMandateId, order_id: order.id },
-  });
+  // Primary rail: Razorpay Checkout Standard rendered on OUR storefront page
+  // (app/checkout/[rowId]) — the authentic merchant integration. Contact is
+  // prefilled, so the hosted flow is: pick UPI → enter VPA → pay.
+  // (Payment Links remain in lib/razorpay/client.ts as a no-code fallback.)
+  const appUrl = origin ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const checkoutUrl = `${appUrl}/checkout/${paymentRowId}`;
 
   await db().execute({
-    sql: `INSERT INTO payments (id, mandate_id, reference_id, rzp_order_id, rzp_link_id, amount_paise, attempt, status)
-          VALUES (?, ?, ?, ?, ?, ?, ?, 'link_issued')`,
-    args: [paymentRowId, paymentMandateId, paymentRowId, order.id, link.id, payload.amount_paise, attempt],
+    sql: `INSERT INTO payments (id, mandate_id, reference_id, rzp_order_id, amount_paise, attempt, status)
+          VALUES (?, ?, ?, ?, ?, ?, 'checkout_open')`,
+    args: [paymentRowId, paymentMandateId, paymentRowId, order.id, payload.amount_paise, attempt],
   });
 
   await publish({
-    type: "payment.link_issued",
+    type: "payment.checkout_open",
     session_id: payload.session_id,
     payload: {
       payment_row_id: paymentRowId,
@@ -69,15 +69,14 @@ export async function issueRailForMandate(paymentMandateId: string): Promise<Che
       attempt,
       amount_paise: payload.amount_paise,
       rzp_order_id: order.id,
-      rzp_link_id: link.id,
-      checkout_url: link.short_url,
+      checkout_url: checkoutUrl,
     },
   });
 
   return {
     status: "issued",
     payment_row_id: paymentRowId,
-    checkout_url: link.short_url,
+    checkout_url: checkoutUrl,
     amount_paise: payload.amount_paise,
     verdict: { outcome: "allow", reasons: [] },
   };
@@ -200,12 +199,17 @@ export async function reconcileByReference(referenceOrRowId: string): Promise<Pa
   if (!row) return null;
   if (["captured", "recovered", "cancelled"].includes(row.status)) return row;
 
-  // We don't know the razorpay payment id until the hosted page is used, so
-  // the poll path fetches the LINK, whose status tells us enough to act or wait.
-  const { fetchLinkStatus } = await import("./client");
-  const link = await fetchLinkStatus(row.rzp_link_id!);
-  if (link === "paid") {
-    return applySettlement("captured", { reference_id: row.reference_id }, { raw: { via: "poll" } });
+  // Ask the ORDER what happened — payments made against it appear here with
+  // their razorpay payment id, which we then persist.
+  const { fetchOrderPayments } = await import("./client");
+  const payments = row.rzp_order_id ? await fetchOrderPayments(row.rzp_order_id) : [];
+  const terminal = payments.find((p) => p.status === "captured") ?? payments.find((p) => p.status === "failed");
+  if (terminal) {
+    return applySettlement(
+      terminal.status === "captured" ? "captured" : "failed",
+      { reference_id: row.reference_id, rzp_order_id: row.rzp_order_id, rzp_payment_id: terminal.id },
+      { failure_reason: terminal.error_description ?? null, raw: { via: "poll", payment: terminal } }
+    );
   }
   return row;
 }

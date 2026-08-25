@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS approvals (
 CREATE INDEX IF NOT EXISTS idx_approvals_open ON approvals(outcome) WHERE outcome IS NULL;
 
 -- Real Razorpay rail objects, one row per checkout attempt.
--- status: created | link_issued | pending | captured | failed | recovered | cancelled
+-- status: checkout_open | captured | failed | recovered | cancelled
 CREATE TABLE IF NOT EXISTS payments (
   id              TEXT PRIMARY KEY,
   mandate_id      TEXT NOT NULL REFERENCES mandates(id),

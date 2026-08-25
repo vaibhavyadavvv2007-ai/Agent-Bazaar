@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   let row = res.rows[0];
   if (!row) return NextResponse.json({ error: "unknown payment_row_id" }, { status: 404 });
 
-  if (String(row.status) === "link_issued") {
+  if (String(row.status) === "checkout_open") {
     await reconcileByReference(target);
     res = await db().execute({ sql: "SELECT * FROM payments WHERE id = ?", args: [target] });
     row = res.rows[0];

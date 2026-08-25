@@ -130,7 +130,7 @@ export async function runAgentSession(
         session_id: sessionId,
         payload: { turn, args: compact(use.input), result: compact(result) },
       });
-      results.push({ kind: "tool_result", tool_use_id: use.id, content: JSON.stringify(compact(result)) });
+      results.push({ kind: "tool_result", tool_use_id: use.id, tool_name: use.name, content: JSON.stringify(compact(result)) });
     }
 
     messages.push({ role: "assistant", content: response.rawAssistantBlocks });
@@ -153,7 +153,7 @@ function compact(v: unknown): unknown {
 
 export type TextBlock = { kind: "text"; text: string };
 export type ToolUseBlock = { kind: "tool_use"; id: string; name: string; input: Record<string, unknown> };
-export type ToolResultBlock = { kind: "tool_result"; tool_use_id: string; content: string };
+export type ToolResultBlock = { kind: "tool_result"; tool_use_id: string; tool_name?: string; content: string };
 export type AssistantBlock = TextBlock | ToolUseBlock;
 
 export type AdapterMessage =

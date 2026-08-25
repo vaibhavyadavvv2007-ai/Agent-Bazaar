@@ -20,7 +20,9 @@ import { publish } from "@/lib/events/bus";
  * deleting rows, and the schema forbids exactly that.
  */
 
-export const TTL = { INTENT: 15 * 60, CART: 10 * 60, PAYMENT: 10 * 60 }; // seconds
+// Demo-tuned TTLs (human-paced fail→retry cycles must fit inside them).
+// Production tightens: intent 5 min, cart 3 min, with renewal ceremony.
+export const TTL = { INTENT: 30 * 60, CART: 30 * 60, PAYMENT: 15 * 60 }; // seconds
 
 export type IntentInput = {
   max_amount_paise: number;
@@ -245,7 +247,7 @@ export type CheckoutResult =
   | { status: "rejected"; reason: string; detail: Record<string, unknown> };
 
 /** Runs the full gate for a signed PAYMENT mandate. */
-export async function requestCheckout(paymentMandateId: string): Promise<CheckoutResult> {
+export async function requestCheckout(paymentMandateId: string, origin?: string): Promise<CheckoutResult> {
   const payment = await getMandate(paymentMandateId);
   if (!payment || payment.type !== "PAYMENT") {
     return { status: "rejected", reason: "unknown_payment_mandate", detail: {} };
@@ -309,7 +311,7 @@ export async function requestCheckout(paymentMandateId: string): Promise<Checkou
     return { status: "needs_approval", approval_id: approvalId, reasons: verdict.reasons, amount_paise: cartPayload.total_paise };
   }
 
-  return issueRail(paymentMandateId, payment.session_id);
+  return issueRail(paymentMandateId, payment.session_id, origin);
 }
 
 async function grandparentOf(payment: MandateRow): Promise<string> {
@@ -349,11 +351,11 @@ function assertFresh(m: MandateRow): void {
 }
 
 /** Issued lazily by the rail module to avoid a circular dependency. */
-let _issueRailImpl: ((paymentMandateId: string, sessionId: string) => Promise<CheckoutResult>) | null = null;
+let _issueRailImpl: ((paymentMandateId: string, sessionId: string, origin?: string) => Promise<CheckoutResult>) | null = null;
 export function registerIssueRail(fn: typeof _issueRailImpl): void { _issueRailImpl = fn; }
-function issueRail(paymentMandateId: string, sessionId: string): Promise<CheckoutResult> {
+function issueRail(paymentMandateId: string, sessionId: string, origin?: string): Promise<CheckoutResult> {
   if (!_issueRailImpl) throw new PipelineError("rail not registered — did the server boot lib/razorpay/rail.ts?");
-  return _issueRailImpl(paymentMandateId, sessionId);
+  return _issueRailImpl(paymentMandateId, sessionId, origin);
 }
 
 export class PipelineError extends Error {}

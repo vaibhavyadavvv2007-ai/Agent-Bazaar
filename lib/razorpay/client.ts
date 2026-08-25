@@ -65,7 +65,8 @@ export async function createPaymentLink(opts: {
     customer: {
       name: "Agent Buyer",
       email: "agents@example.com",
-      contact: "+919999999999",
+      // Razorpay rejects recurring-digit test numbers; use a realistic one.
+      contact: "+919876543210",
     },
     notify: { sms: false, email: false },
     notes: opts.notes,
@@ -96,5 +97,15 @@ export async function fetchLinkStatus(linkId: string): Promise<string | null> {
     return link.status ?? null; // created | partially_paid | paid | cancelled | expired
   } catch {
     return null;
+  }
+}
+
+/** All payments made against an order — the poll reconciler's ground truth. */
+export async function fetchOrderPayments(orderId: string): Promise<RzpPayment[]> {
+  try {
+    const res = (await rzp().orders.fetchPayments(orderId)) as unknown as { items: RzpPayment[] };
+    return res.items ?? [];
+  } catch {
+    return [];
   }
 }

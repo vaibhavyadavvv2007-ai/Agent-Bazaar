@@ -1,90 +1,80 @@
-import { mkdirSync } from "node:fs";
 import { chromium, type Page } from "playwright";
+import { mkdirSync, writeFileSync } from "node:fs";
 
 /**
- * Settlement driver — completes a Razorpay-hosted payment link page using
- * test instruments.
+ * Settlement step — the human verification moment, by design.
  *
- * Why this exists: Razorpay (by design) has no headless payment-authorization
- * API. In test mode the hosted page accepts mock instruments:
- *   UPI VPA  success@razorpay  → payment succeeds
- *   UPI VPA  failure@razorpay  → payment fails (our recovery demo)
+ * Finding from the spike (documented in docs/ARCHITECTURE.md): Razorpay's
+ * hosted surfaces embed device-integrity scoring (Sardine) that REFUSES to
+ * let an automated browser complete a payment — a provably-valid contact
+ * number is rejected the moment a bot types it. We stopped fighting this,
+ * because it is the thesis: unsupervised automation SHOULD NOT move money.
+ * AP2's Cart Mandate exists for exactly this moment; Razorpay's own agentic
+ * UPI pilot is "consent-based authentication" — the human confirms on their
+ * device.
  *
- * The human-visible framing: AP2's Cart Mandate means the exact cart is
- * verified on the processor's own surface before money moves. On camera we
- * use the deliberate human click; in bulk runs this driver does it.
+ * So the driver opens the hosted checkout on our storefront and a HUMAN
+ * completes it (on camera for the video): UPI VPA `success@razorpay`
+ * settles, `failure@razorpay` fails. Terminal truth is read from OUR page,
+ * which mirrors the ledger (webhook + poll reconciler) — never the modal's
+ * cosmetic state.
  */
 
 export type SettleOutcome = "success" | "failure";
 
-const VPAS: Record<SettleOutcome, string> = {
-  success: "success@razorpay",
-  failure: "failure@razorpay",
-};
-
 export async function settleLink(
   checkoutUrl: string,
   outcome: SettleOutcome,
-  opts: { headless?: boolean } = {}
+  opts: { headless?: boolean; timeoutMs?: number } = {}
 ): Promise<{ ok: boolean; detail: string }> {
-  const browser = await chromium.launch({ headless: opts.headless ?? true });
-  const page = await browser.newPage();
+  const browser = await chromium.launch({ headless: opts.headless ?? false });
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   try {
-    await page.goto(checkoutUrl, { waitUntil: "networkidle", timeout: 45_000 });
+    await page.goto(checkoutUrl, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    await page.bringToFront();
 
-    // Method selection — Razorpay's hosted pages differ between Checkout and
-    // Payment Links; try the common shapes before giving up.
-    if (!(await clickIfVisible(page, [/upi/i]))) {
-      return fail(page, "could not find a UPI method option");
-    }
+    const vpa = outcome === "success" ? "success@razorpay" : "failure@razorpay";
+    console.log(`
+┌──────────────────────────────────────────────────────────────┐
+│ 🛒 CHECKOUT OPEN — human verification step (Cart Mandate)    │
+│ In the Razorpay window:                                      │
+│   1. Mobile number: 9876543210   → Continue                  │
+│   2. Choose UPI → enter VPA: ${vpa.padEnd(21)}│
+│   3. Pay                                                     │
+│ The ledger is watched automatically — no need to report back.│
+└──────────────────────────────────────────────────────────────┘`);
 
-    const vpaInput = page.getByPlaceholder(/vpa|upi id/i).first();
-    await vpaInput.waitFor({ state: "visible", timeout: 15_000 });
-    await vpaInput.fill(VPAS[outcome]);
-
-    // Pay button (label varies: "Pay", "Pay ₹…", "Submit").
-    if (!(await clickIfVisible(page, [/^pay( ₹|\b)/i, /submit/i, /proceed/i]))) {
-      return fail(page, "could not find the pay button");
-    }
-
-    // Terminal state: success banner or failure message.
+    // Terminal truth = our page reflecting the ledger.
+    const timeoutMs = opts.timeoutMs ?? 180_000;
     const result = await Promise.race([
       page
-        .getByText(/payment successful|payment done|paid successfully/i)
+        .getByText(/payment captured/i)
         .first()
-        .waitFor({ state: "visible", timeout: 40_000 })
-        .then(() => ({ ok: true, detail: "hosted page reported success" })),
+        .waitFor({ state: "visible", timeout: timeoutMs })
+        .then(() => ({ ok: true, detail: "ledger confirms captured" })),
       page
-        .getByText(/payment failed|failed|declined/i)
+        .getByText(/payment failed/i)
         .first()
-        .waitFor({ state: "visible", timeout: 40_000 })
-        .then(() => ({ ok: false, detail: "hosted page reported failure" })),
+        .waitFor({ state: "visible", timeout: timeoutMs })
+        .then(() => ({ ok: false, detail: "ledger confirms failed" })),
     ]);
     return result;
   } catch (e) {
-    return fail(page, `driver error: ${String(e)}`);
+    return fail(page, `driver error: ${String(e).slice(0, 200)}`);
   } finally {
-    await browser.close();
+    await browser.close().catch(() => {});
   }
-}
-
-async function clickIfVisible(page: Page, patterns: RegExp[]): Promise<boolean> {
-  for (const pattern of patterns) {
-    try {
-      const el = page.getByText(pattern).first();
-      await el.waitFor({ state: "visible", timeout: 6_000 });
-      await el.click();
-      return true;
-    } catch {
-      // try next pattern
-    }
-  }
-  return false;
 }
 
 async function fail(page: Page, detail: string): Promise<{ ok: false; detail: string }> {
-  mkdirSync("./shots", { recursive: true });
-  await page.screenshot({ path: `./shots/settle-${Date.now()}.png`, fullPage: true });
-  console.error(`[settle] ${detail} — screenshot saved to ./shots/`);
+  try {
+    mkdirSync("./shots", { recursive: true });
+    const stamp = Date.now();
+    await page.screenshot({ path: `./shots/settle-${stamp}.png`, fullPage: true });
+    writeFileSync(`./shots/settle-${stamp}.html`, await page.content());
+    console.error(`[settle] ${detail} — shot+dom saved to ./shots/settle-${stamp}.*`);
+  } catch {
+    console.error(`[settle] ${detail}`);
+  }
   return { ok: false, detail };
 }

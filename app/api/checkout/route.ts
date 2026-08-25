@@ -32,11 +32,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "unknown cart_mandate_id" }, { status: 404 });
     }
 
-    const result = await requestCheckout(paymentMandateId);
+    const result = await requestCheckout(paymentMandateId, req.nextUrl.origin);
     const status = result.status === "issued" ? 200 : result.status === "needs_approval" ? 202 : 403;
     return NextResponse.json({ ...result, payment_mandate_id: paymentMandateId }, { status });
   } catch (e) {
-    return NextResponse.json({ error: "checkout failed", detail: String(e) }, { status: 500 });
+    const detail =
+      e instanceof Error
+        ? `${e.name}: ${e.message}`
+        : JSON.stringify(e); // razorpay SDK throws plain objects
+    console.error("[checkout] failed:", detail);
+    return NextResponse.json({ error: "checkout failed", detail }, { status: 500 });
   }
 }
 
@@ -52,7 +57,9 @@ async function createPaymentMandateFor(cartMandateId: string): Promise<string | 
     if (!sessionId) return null;
     const m = await createPaymentMandate(sessionId, cartMandateId);
     return m.id;
-  } catch {
+  } catch (e) {
+    const detail = e instanceof Error ? `${e.name}: ${e.message}` : JSON.stringify(e);
+    console.error("[checkout] payment-mandate creation failed:", detail);
     return null;
   }
 }
