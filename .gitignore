@@ -27,3 +27,6 @@ next-env.d.ts
 
 # settlement-driver debug artifacts
 /shots/
+
+# private notes (not for judges)
+/PROJECT-EXPLAINED.md

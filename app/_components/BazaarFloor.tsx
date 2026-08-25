@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useBazaarStream, dotClassFor, type LiveEvent } from "./EventFeedContext";
+import { useBazaarStream, hueFor, type LiveEvent } from "./EventFeedContext";
 
 /**
- * THE BAZAAR FLOOR — a live view of real agent commerce.
+ * THE PLAYABLE SHOPKEEPER FLOOR.
  *
- * Not a game skin over mock data: every dot walking to a stall, every mandate
- * card that lands, every bell ring is driven by an actual event from the
- * pipeline. If the floor is quiet, no money is moving; when it moves,
- * you watch it happen.
+ * A night street market you govern. Every agent dot is a real API session;
+ * every receipt printed on the roll is a real signed mandate; the bell rings
+ * only when the REAL policy engine wants a human. The game is a viewer over
+ * truth — if it dies, the dashboard still tells the story.
+ *
+ * Signature elements: the carbon-copy receipt roll (the audit trail as a
+ * bill book, rubber stamps included) and the shopkeeper's brass bell.
  */
 
 type Product = {
@@ -31,18 +34,53 @@ const CATEGORY_EMOJI: Record<string, string> = {
   cricket: "🏏",
 };
 
-const CELL_W = 168;
-const CELL_H = 96;
+const rupees = (paise: number) => `₹${(paise / 100).toLocaleString("en-IN")}`;
 
-function rupees(paise: number): string {
-  return `₹${(paise / 100).toLocaleString("en-IN")}`;
+/* Lane geometry (viewBox units) */
+const W = 1160;
+const TOP_Y = 34;
+const BOTTOM_Y = 268;
+const LANE_Y = 176; // the walkable street between stall rows
+const COL_W = 160;
+
+function stallPos(p: Product): { x: number; y: number } {
+  // seed grid: stall_y 0 → top row · 1 → bottom row · 2 (13th stall) → top row, extra column
+  const col = Math.max(0, Math.round(p.stall_x));
+  const y = Math.round(p.stall_y);
+  const top = y !== 1;
+  const x = 52 + (top && y === 2 ? 6 : col) * COL_W;
+  return { x, y: top ? TOP_Y : BOTTOM_Y };
+}
+function apronPos(p: Product): { x: number; y: number } {
+  const s = stallPos(p);
+  return { x: s.x + 46, y: s.y + (s.y === TOP_Y ? 118 : -34) };
 }
 
-type AgentDot = { sessionId: string; label: string; x: number; y: number };
+type Agent = {
+  sessionId: string;
+  name: string;
+  hue: string;
+  x: number;
+  y: number;
+  bubble: string;
+  lastTs: number;
+};
 
-export default function BazaarFloor() {
+type Receipt = {
+  key: string;
+  lines: string[];
+  stamp?: { text: string; tone: "good" | "warn" | "bad" };
+  tone: string;
+  ago: string;
+};
+
+type Bell = { approvalId: string; amount: number; reason: string; rangAt: number };
+
+export function Street() {
   const { connected, last } = useBazaarStream();
   const [products, setProducts] = useState<Product[]>([]);
+  const [bell, setBell] = useState<Bell | null>(null);
+  const [bellNote, setBellNote] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/catalog")
@@ -55,194 +93,281 @@ export default function BazaarFloor() {
       .catch(() => {});
   }, []);
 
-  // Reduce the event stream into what the floor renders.
   const agents = useMemo(() => reduceAgents(last), [last]);
-  const cards = useMemo(() => reduceCards(last), [last]);
-  const pendingApproval = useMemo(
-    () => last.find((e) => e.type === "approval.requested")?.payload ?? null,
-    [last]
-  );
+
+  // Bell gameplay off the live stream.
+  useEffect(() => {
+    for (const e of last) {
+      if (e.type === "approval.requested" && e.payload?.approval_id) {
+        const id = String(e.payload.approval_id);
+        setBell((b) => (b?.approvalId === id ? b : { approvalId: id, amount: Number(e.payload?.amount_paise ?? 0), reason: firstReason(e) ?? "policy gate", rangAt: Date.now() }));
+      }
+      if (e.type === "approval.approved" || e.type === "approval.rejected") setBell(null);
+    }
+  }, [last]);
+
+  async function decide(decision: "approved" | "rejected") {
+    if (!bell) return;
+    const seconds = ((Date.now() - bell.rangAt) / 1000).toFixed(1);
+    setBellNote(decision === "approved" ? `Gate opened in ${seconds}s — rails issuing…` : `Refused in ${seconds}s — the agent gets a structured no.`);
+    await fetch("/api/approvals", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ approval_id: bell.approvalId, decision, decided_by: "shopkeeper-floor" }),
+    }).catch(() => {});
+    setBell(null);
+    setTimeout(() => setBellNote(null), 6000);
+  }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
-      {/* ── Floor ─────────────────────────────────────────────── */}
-      <section className="relative overflow-x-auto rounded-2xl border border-(--bazaar-line) bg-(--bazaar-panel) p-4">
-        <header className="mb-3 flex items-center gap-3">
-          <h2 className="text-sm font-medium uppercase tracking-widest text-(--bazaar-ink-dim)">
-            Bazaar floor
-          </h2>
+    <section className="relative overflow-hidden rounded-2xl border border-(--stall-edge) bg-(--night-deep) p-3">
+        <header className="flex items-center gap-3 px-1 pb-2">
           <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs ${connected ? "bg-emerald-950 text-emerald-300" : "bg-stone-800 text-stone-400"}`}>
             <span className={`inline-block h-1.5 w-1.5 rounded-full ${connected ? "animate-pulse bg-emerald-400" : "bg-stone-500"}`} />
-            {connected ? "live" : "connecting…"}
+            {connected ? "street live" : "connecting…"}
           </span>
+          <span className="text-xs text-(--haldi)">every dot is a real agent session · every receipt a signed mandate</span>
         </header>
 
-        <svg
-          viewBox={`0 0 ${6 * CELL_W} ${4 * CELL_H}`}
-          className="min-w-[640px]"
-          role="img"
-          aria-label="Live map of the bazaar: stalls and shopping agents"
-        >
+        <svg viewBox={`0 0 ${W} 420`} className="min-w-[720px]" role="img" aria-label="Night bazaar street with stalls, lanterns and shopping agents">
+          {/* cobblestones */}
           <defs>
-            <pattern id="cobble" width="24" height="24" patternUnits="userSpaceOnUse">
-              <path d="M0 24H24" stroke="var(--bazaar-line)" strokeWidth="0.5" opacity="0.35" />
-              <path d="M24 0V24" stroke="var(--bazaar-line)" strokeWidth="0.5" opacity="0.35" />
+            <pattern id="cobble" width="26" height="22" patternUnits="userSpaceOnUse">
+              <path d="M0 22H26" stroke="var(--stall-edge)" strokeWidth="0.6" opacity="0.4" />
+              <path d="M26 0V22" stroke="var(--stall-edge)" strokeWidth="0.6" opacity="0.25" />
             </pattern>
+            <radialGradient id="lanternPool" cx="50%" cy="0%" r="80%">
+              <stop offset="0%" stopColor="var(--lantern)" stopOpacity="0.22" />
+              <stop offset="100%" stopColor="var(--lantern)" stopOpacity="0" />
+            </radialGradient>
           </defs>
-          <rect width="100%" height="100%" fill="url(#cobble)" />
+          <rect width={W} height="420" fill="url(#cobble)" />
 
-          {products.map((p) => (
-            <g key={p.id} transform={`translate(${p.stall_x * CELL_W + 8}, ${p.stall_y * CELL_H + 8})`}>
-              <rect
-                width={CELL_W - 16}
-                height={CELL_H - 16}
-                rx="10"
-                fill="var(--bazaar-bg)"
-                stroke="var(--bazaar-line)"
-                strokeWidth="1"
-              />
-              <text x="12" y="26" fontSize="18">{CATEGORY_EMOJI[p.category] ?? "🏪"}</text>
-              <text x="38" y="25" fontSize="11" fill="var(--bazaar-ink)" fontWeight="600">
-                {p.title.length > 17 ? `${p.title.slice(0, 16)}…` : p.title}
-              </text>
-              <text x="38" y="42" fontSize="10" fill="var(--bazaar-saffron)">
-                {rupees(p.price_paise)}
-              </text>
-              <text x="12" y={CELL_H - 22} fontSize="9" fill="var(--bazaar-ink-dim)">
-                {p.sku} · stock {p.stock}
-              </text>
+          {/* the wire across the lane, lanterns hanging into the street */}
+          <line x1="0" y1="146" x2={W} y2="146" stroke="var(--stall-edge)" strokeWidth="2.5" />
+          {[110, 330, 550, 770, 990].map((x) => (
+            <g key={x}>
+              <path d={`M ${x} 146 q 4 10 0 18`} stroke="var(--stall-edge)" strokeWidth="1.5" fill="none" />
+              <ellipse cx={x} cy="205" rx="72" ry="42" fill="url(#lanternPool)" />
+              <rect x={x - 7} y="162" width="14" height="26" rx="6" fill="var(--lantern)" opacity="0.95" />
+              <line x1={x - 7} y1="170" x2={x + 7} y2="170" stroke="var(--night-deep)" strokeWidth="1.2" opacity="0.5" />
+              <circle cx={x} cy="192" r="2" fill="var(--lantern)" />
             </g>
           ))}
 
-          {/* Agent dots — positioned by real events, moved with CSS transitions */}
+          {/* stalls */}
+          {products.map((p) => {
+            const s = stallPos(p);
+            return (
+              <g key={p.id} transform={`translate(${s.x}, ${s.y})`}>
+                <rect width="132" height="96" rx="9" fill="var(--stall)" stroke="var(--stall-edge)" />
+                <rect x="0" y="0" width="132" height="16" rx="9" fill="var(--stall-edge)" opacity="0.7" />
+                <text x="10" y="34" fontSize="17">{CATEGORY_EMOJI[p.category] ?? "🏪"}</text>
+                <text x="34" y="33" fontSize="11" fill="var(--chalk)" fontWeight="600" className="font-sign">
+                  {p.title.length > 15 ? `${p.title.slice(0, 14)}…` : p.title}
+                </text>
+                <text x="34" y="49" fontSize="11" fill="var(--lantern)" className="font-receipt">
+                  {rupees(p.price_paise)}
+                </text>
+                <text x="10" y="82" fontSize="8.5" fill="var(--haldi)" className="font-receipt">
+                  {p.sku} · stock {p.stock}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* agent dots with speech bubbles */}
           {agents.map((a) => (
             <g key={a.sessionId} style={{ transform: `translate(${a.x}px, ${a.y}px)`, transition: "transform 900ms cubic-bezier(.4,0,.2,1)" }}>
-              <circle r="13" fill="var(--bazaar-panel)" stroke="var(--bazaar-saffron)" strokeWidth="1.5" />
-              <text textAnchor="middle" dy="4" fontSize="13">🤖</text>
+              {a.bubble && (
+                <g>
+                  <rect x="-8" y="-58" width={Math.min(190, 8 + a.bubble.length * 6.1)} height="22" rx="8" fill="var(--stall)" stroke="var(--stall-edge)" />
+                  <text x="0" y="-43" fontSize="10.5" fill="var(--chalk)">{a.bubble}</text>
+                </g>
+              )}
+              <circle r="14" fill="var(--night-deep)" stroke={a.hue} strokeWidth="2.5" />
+              <text textAnchor="middle" dy="4.5" fontSize="14">🤖</text>
+              <text textAnchor="middle" y="30" fontSize="9" fill={a.hue} className="font-receipt">{a.name}</text>
             </g>
           ))}
+
+          {/* the empty-street invitation */}
+          {agents.length === 0 && (
+            <text x={W / 2} y={LANE_Y + 58} textAnchor="middle" fontSize="13" fill="var(--haldi)">
+              The street is quiet. Send an agent: POST /api/agents/run — or open this page next to a demo run.
+            </text>
+          )}
         </svg>
 
-        {pendingApproval && (
-          <div className="absolute right-6 top-14 max-w-xs animate-bounce rounded-xl border border-(--bazaar-marigold) bg-black/80 p-3 shadow-lg">
-            <div className="text-sm font-semibold text-(--bazaar-marigold)">🔔 Shopkeeper! A gate tripped</div>
-            <div className="mt-1 text-xs text-(--bazaar-ink-dim)">
-              {rupees(Number(pendingApproval.amount_paise ?? 0))} needs human approval — decide in{" "}
-              <a href="/approvals" className="underline">the queue</a>.
+        {/* ══ THE BELL — gameplay moment ══ */}
+        {bell && (
+          <div className="absolute right-4 top-12 w-72 rounded-xl border border-(--marigold) bg-black/85 p-3 shadow-2xl">
+            <div className="flex items-center gap-2">
+              <span className="bell-swing inline-block text-2xl">🔔</span>
+              <span className="font-sign text-lg text-(--marigold)">GATE TRIPPED</span>
             </div>
+            <div className="mt-1 font-receipt text-sm text-(--chalk)">{rupees(bell.amount)}</div>
+            <div className="mt-0.5 text-xs text-(--haldi)">{bell.reason}</div>
+            <div className="mt-3 flex gap-2">
+              <button onClick={() => decide("approved")} className="flex-1 rounded-lg bg-(--henna) px-3 py-1.5 text-sm font-semibold text-black hover:brightness-110">
+                Open gate
+              </button>
+              <button onClick={() => decide("rejected")} className="flex-1 rounded-lg border border-(--kumkum) px-3 py-1.5 text-sm font-semibold text-(--kumkum) hover:bg-red-950/50">
+                Refuse
+              </button>
+            </div>
+            <div className="mt-1.5 text-center text-[10px] text-(--haldi)">your latency is being measured</div>
           </div>
         )}
+        {bellNote && <div className="absolute bottom-3 left-4 rounded-lg bg-black/70 px-3 py-1.5 text-xs text-(--lantern-soft)">{bellNote}</div>}
       </section>
+  );
+}
 
-      {/* ── Mandate card feed ──────────────────────────────────── */}
-      <aside className="rounded-2xl border border-(--bazaar-line) bg-(--bazaar-panel) p-4">
-        <h2 className="text-sm font-medium uppercase tracking-widest text-(--bazaar-ink-dim)">
-          Ledger — as it happens
-        </h2>
-        <ol className="mt-3 max-h-[520px] space-y-2 overflow-y-auto pr-1">
-          {cards.length === 0 && (
-            <li className="rounded-lg border border-dashed border-(--bazaar-line) p-4 text-center text-sm text-(--bazaar-ink-dim)">
-              Quiet bazaar. Send an agent:{" "}
-              <code className="rounded bg-black/40 px-1">POST /api/agents/run</code>
-            </li>
-          )}
-          {cards.map((c) => (
-            <li key={c.key} className={`rounded-lg border p-2.5 text-xs ${c.tone}`}>
-              <div className="flex items-center justify-between">
-                <span className="font-medium">{c.icon} {c.title}</span>
-                <span className="text-[10px] opacity-60">{c.ago}</span>
+/* ══ THE BILL BOOK — the audit trail as a receipt roll ═════════════ */
+
+export function BillBook() {
+  const { last } = useBazaarStream();
+  const receipts = useMemo(() => reduceReceipts(last), [last]);
+
+  return (
+    <aside className="rounded-2xl border border-(--stall-edge) bg-(--night-deep) p-3">
+      <header className="flex items-baseline justify-between px-1 pb-2">
+        <h2 className="font-sign text-sm tracking-wide text-(--haldi)">BILL BOOK</h2>
+        <span className="font-receipt text-[10px] text-(--haldi)">append-only · tear-proof</span>
+      </header>
+      <div className="receipt-roll max-h-[560px] space-y-2.5 overflow-y-auto p-2.5">
+        {receipts.length === 0 && (
+          <div className="rounded-lg border border-dashed border-(--stall-edge) p-4 text-center text-xs text-(--haldi)">
+            No bills yet. When agents spend, every mandate prints here — signed, stamped, permanent.
+          </div>
+        )}
+        {receipts.map((r) => (
+          <div key={r.key} className="receipt-card tear-out px-3 py-2 font-receipt text-[11px]">
+            {r.lines.map((l, i) => (
+              <div key={i} className={i === 0 ? "font-semibold" : "opacity-80"}>{l}</div>
+            ))}
+            {r.stamp && (
+              <div className={`stamp mt-1.5 text-[10px] font-bold uppercase ${r.stamp.tone === "good" ? "text-(--henna)" : r.stamp.tone === "warn" ? "text-(--marigold)" : "text-(--kumkum)"}`}>
+                {r.stamp.text}
               </div>
-              {c.detail && <div className="mt-1 opacity-75">{c.detail}</div>}
-            </li>
-          ))}
-        </ol>
-      </aside>
-    </div>
+            )}
+            <div className="mt-1 text-right text-[9px] opacity-50">{r.ago}</div>
+          </div>
+        ))}
+      </div>
+    </aside>
   );
 }
 
 /* ── Stream reducers ──────────────────────────────────────────────── */
 
-function reduceAgents(events: LiveEvent[]): AgentDot[] {
-  const map = new Map<string, AgentDot>();
-  for (const e of events) {
+function reduceAgents(events: LiveEvent[]): Agent[] {
+  const map = new Map<string, Agent>();
+  // `events` is newest-first; replay oldest → newest so the latest state wins.
+  for (const e of [...events].reverse()) {
     if (!e.session_id) continue;
+    const existing = map.get(e.session_id);
     if (e.type === "agent.arrived") {
-      map.set(e.session_id, { sessionId: e.session_id, label: String(e.payload?.agent_id ?? "agent"), x: 20, y: 20 });
+      map.set(e.session_id, {
+        sessionId: e.session_id,
+        name: shortName(String(e.payload?.agent_id ?? "agent")),
+        hue: hueFor(e.session_id),
+        x: 120 + map.size * 90,
+        y: LANE_Y,
+        bubble: "arrived 🙏",
+        lastTs: Date.now(),
+      });
+      continue;
     }
-    const sku = e.payload?.args && typeof e.payload.args === "object"
-      ? (e.payload.args as { items?: { sku?: string }[] }).items?.[0]?.sku ??
-        (e.payload.args as { sku?: string }).sku
-      : undefined;
-    if (sku && map.has(e.session_id)) {
-      const dot = map.get(e.session_id)!;
-      const target = stallCenter(sku);
-      if (target) map.set(e.session_id, { ...dot, ...target });
-    }
+    if (!existing) continue;
+
+    // Harness events carry {args}; tool-surface events carry fields directly.
+    const args = ((e.payload?.args ?? e.payload) ?? {}) as { sku?: string; items?: { sku?: string }[]; query?: string };
+    const sku = args.sku ?? args.items?.[0]?.sku;
+    const target = sku ? CATALOG_INDEX.get(sku) : undefined;
+    let bubble = existing.bubble;
+
+    if (e.type === "agent.searched_catalog") bubble = `browsing ${args.query ? `"${args.query}"` : "the stalls"}…`;
+    else if (e.type === "agent.tool.create_intent_mandate") bubble = "permission signed 🧾";
+    else if (e.type === "agent.tool.propose_cart" || e.type === "mandate.signed.cart") bubble = "cart committed 🛒";
+    else if (e.type === "agent.tool.request_checkout") bubble = "asking the gate…";
+    else if (e.type === "policy.allow") bubble = "allowed ✅";
+    else if (e.type === "policy.gate") bubble = "rang the bell 🔔";
+    else if (e.type === "policy.deny") bubble = "denied ⛔";
+    else if (e.type === "payment.captured") bubble = "paid! 💰";
+    else if (e.type === "payment.failed") bubble = "payment failed ⚠️";
+    else if (e.type === "payment.recovered") bubble = "recovered 🛟";
+    else if (e.type === "agent.left") bubble = "left 👋";
+
+    map.set(e.session_id, {
+      ...existing,
+      x: target ? apronPos(target).x : existing.x,
+      y: target ? apronPos(target).y : existing.y,
+      bubble,
+      lastTs: Date.now(),
+    });
   }
   return [...map.values()];
 }
 
-let CATALOG: Product[] = [];
+function shortName(agentId: string): string {
+  const [, persona] = agentId.split("/");
+  return (persona ?? agentId).slice(0, 12);
+}
+
+const CATALOG_INDEX = new Map<string, Product>();
 export function primeFloorCatalog(products: Product[]): void {
-  CATALOG = products;
-}
-function stallCenter(sku: string): { x: number; y: number } | null {
-  const p = CATALOG.find((x) => x.sku === sku);
-  return p ? { x: p.stall_x * CELL_W + CELL_W / 2, y: p.stall_y * CELL_H + CELL_H / 2 } : null;
+  CATALOG_INDEX.clear();
+  for (const p of products) CATALOG_INDEX.set(p.sku, p);
 }
 
-type Card = { key: string; icon: string; title: string; detail?: string; tone: string; ago: string };
-
-function reduceCards(events: LiveEvent[]): Card[] {
-  const out: Card[] = [];
-  for (const e of events.slice(0, 40)) {
-    const c = eventToCard(e);
-    if (c) out.push(c);
+function reduceReceipts(events: LiveEvent[]): Receipt[] {
+  const out: Receipt[] = [];
+  for (const e of events.slice(0, 60)) {
+    const r = eventToReceipt(e);
+    if (r) out.push(r);
   }
   return out;
 }
 
-function eventToCard(e: LiveEvent): Card | null {
+function eventToReceipt(e: LiveEvent): Receipt | null {
   const ago = e.ts ? new Date(e.ts).toLocaleTimeString("en-IN", { hour12: false }) : "";
   const amt = Number(e.payload?.amount_paise ?? 0);
+  const paiseLine = amt ? rupees(amt) : "";
   switch (e.type) {
     case "mandate.signed.intent":
-      return { key: e.id!, icon: "🧾", title: `INTENT signed by user`, detail: `bound ₹${rupeesP(e.payload)}`, tone: "border-(--bazaar-blue)/40 bg-blue-950/30", ago };
+      return { key: e.id!, lines: [`INTENT · user-signed`, `bound ${rupees(Number(e.payload?.max_amount_paise ?? e.payload?.amount_paise ?? 0))}`, `hash ${short(e.payload)}`], tone: "", ago };
     case "mandate.signed.cart":
-      return { key: e.id!, icon: "🛒", title: "CART signed by agent", detail: `hash ${short(e.payload)}`, tone: "border-(--bazaar-line) bg-black/20", ago };
+      return { key: e.id!, lines: [`CART · agent-signed`, `hash ${short(e.payload)}`], tone: "", ago };
     case "mandate.signed.payment":
-      return { key: e.id!, icon: "🤝", title: "PAYMENT signed by merchant", detail: `hash ${short(e.payload)}`, tone: "border-(--bazaar-line) bg-black/20", ago };
+      return { key: e.id!, lines: [`PAYMENT · merchant-signed`, `hash ${short(e.payload)}`], tone: "", ago };
     case "policy.allow":
-      return { key: e.id!, icon: "✅", title: `Policy allowed ${rupees(amt)}`, tone: "border-emerald-900 bg-emerald-950/40", ago };
+      return { key: e.id!, lines: [`policy · ALLOW`, paiseLine], stamp: { text: "allowed", tone: "good" }, tone: "", ago };
     case "policy.gate":
-      return { key: e.id!, icon: "🔔", title: `Policy GATED ${rupees(amt)} → human`, tone: "border-(--bazaar-marigold)/50 bg-amber-950/40", ago };
+      return { key: e.id!, lines: [`policy · GATE → human`, paiseLine, firstReason(e) ?? ""], stamp: { text: "held", tone: "warn" }, tone: "", ago };
     case "policy.deny":
-      return { key: e.id!, icon: "⛔", title: `Policy DENIED ${rupees(amt)}`, detail: firstReason(e), tone: "border-red-900 bg-red-950/40", ago };
+      return { key: e.id!, lines: [`policy · DENY`, paiseLine, firstReason(e) ?? ""], stamp: { text: "denied", tone: "bad" }, tone: "", ago };
     case "payment.checkout_open":
-      return { key: e.id!, icon: "🏦", title: `Checkout open · attempt ${String(e.payload?.attempt ?? 1)}`, detail: `order ${shortId(String(e.payload?.rzp_order_id ?? ""))}`, tone: "border-(--bazaar-line) bg-black/20", ago };
+      return { key: e.id!, lines: [`rails · checkout open`, `attempt ${String(e.payload?.attempt ?? 1)} · ${paiseLine}`, `order ${shortId(String(e.payload?.rzp_order_id ?? ""))}`], tone: "", ago };
     case "payment.captured":
-      return { key: e.id!, icon: "💰", title: `CAPTURED ${rupees(amt)}`, detail: "webhook verified", tone: "border-emerald-700 bg-emerald-900/50", ago };
+      return { key: e.id!, lines: [`PAYMENT CAPTURED`, paiseLine, `order ${shortId(String(e.payload?.rzp_order_id ?? ""))}`], stamp: { text: "captured", tone: "good" }, tone: "", ago };
     case "payment.failed":
-      return { key: e.id!, icon: "⚠️", title: `FAILED ${rupees(amt)}`, detail: String(e.payload?.failure_reason ?? ""), tone: "border-red-800 bg-red-950/50", ago };
+      return { key: e.id!, lines: [`payment failed`, paiseLine, String(e.payload?.failure_reason ?? "").slice(0, 46)], stamp: { text: "failed", tone: "bad" }, tone: "", ago };
     case "payment.recovered":
-      return { key: e.id!, icon: "🛟", title: "RECOVERED on retry", tone: "border-emerald-800 bg-emerald-950/50", ago };
+      return { key: e.id!, lines: [`RECOVERY`, `earlier failure marked recovered`], stamp: { text: "recovered", tone: "good" }, tone: "", ago };
     case "suggestion.accepted":
-      return { key: e.id!, icon: "📈", title: "Suggestion accepted (attach ↑)", tone: "border-(--bazaar-blue)/40 bg-blue-950/30", ago };
+      return { key: e.id!, lines: [`upsell accepted`, `attach rate ↑`], tone: "", ago };
     default:
       return null;
   }
 }
 
-function rupeesP(payload: Record<string, unknown> | undefined): string {
-  const v = Number(payload?.amount_paise ?? payload?.max_amount_paise ?? 0);
-  return (v / 100).toLocaleString("en-IN");
-}
 function short(payload: Record<string, unknown> | undefined): string {
   return String(payload?.hash ?? "").slice(0, 10);
 }
 function shortId(id: string): string {
-  return id.length > 14 ? `${id.slice(0, 14)}…` : id;
+  return id.length > 16 ? `${id.slice(0, 16)}…` : id;
 }
 function firstReason(e: LiveEvent): string | undefined {
   const reasons = e.payload?.reasons;

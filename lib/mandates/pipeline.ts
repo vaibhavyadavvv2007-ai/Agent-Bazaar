@@ -89,8 +89,13 @@ async function insertMandate(
            row.signed_by, row.sig, row.alg, row.status, row.iat, row.exp],
   });
 
-  await publish({ type: `mandate.signed.${type.toLowerCase()}`, session_id: sessionId,
-                  payload: { mandate_id: row.id, hash: row.hash, signed_by: actor } });
+  // Summary fields for live viewers (the full truth stays in payload_json).
+  const summary: Record<string, unknown> = { mandate_id: row.id, hash: row.hash, signed_by: actor };
+  if (type === "INTENT") summary.max_amount_paise = (payload as { max_amount_paise?: number }).max_amount_paise;
+  if (type === "CART") summary.total_paise = (payload as { total_paise?: number }).total_paise;
+  if (type === "PAYMENT") summary.amount_paise = (payload as { amount_paise?: number }).amount_paise;
+
+  await publish({ type: `mandate.signed.${type.toLowerCase()}`, session_id: sessionId, payload: summary });
   return row;
 }
 

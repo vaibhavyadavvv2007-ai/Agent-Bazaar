@@ -1,23 +1,125 @@
 @import "tailwindcss";
 
 /*
- * Bazaar palette — warm market-lantern tones on deep night.
- * Defined once as tokens; the visualization and pages both read these.
+ * ── The Agent Bazaar: design tokens ────────────────────────────────
+ * A night street market, lit by lanterns. Roasted-brown ground (never
+ * generic near-black), lantern-saffron light, marigold garlands.
+ *
+ * Type: Anton (hand-painted stall boards) · Alegreya Sans (warm body)
+ *       IBM Plex Mono (the bill-book receipt)
+ * Signature: the receipt-roll ledger + the shopkeeper's bell.
  */
 :root {
-  --bazaar-bg: #1a1210;
-  --bazaar-panel: #241a16;
-  --bazaar-line: #3d2c24;
-  --bazaar-ink: #f5ead9;
-  --bazaar-ink-dim: #b39a82;
-  --bazaar-saffron: #f59e0b;
-  --bazaar-marigold: #fb923c;
-  --bazaar-green: #34d399;
-  --bazaar-red: #f87171;
-  --bazaar-blue: #60a5fa;
+  --night: #17100d;        /* street ground */
+  --night-deep: #100b09;   /* behind stalls */
+  --stall: #261b14;        /* wooden plank panels */
+  --stall-edge: #3d2c20;   /* plank borders */
+  --lantern: #f5a524;      /* saffron lantern light — the accent */
+  --lantern-soft: #f7c05a;
+  --marigold: #fb7a1e;     /* garlands · gate/warning (reserved) */
+  --henna: #46b571;        /* captured / money-good (reserved) */
+  --kumkum: #e5484d;       /* denied / failed (reserved) */
+  --neel: #6aa5f8;         /* agent identity hue (categorical) */
+  --haldi: #d8c29a;        /* turmeric-dust secondary ink */
+  --chalk: #f6ecd9;        /* primary ink — warm white */
+
+  /* Legacy aliases — pages written against the first palette keep working */
+  --bazaar-bg: var(--night);
+  --bazaar-panel: var(--stall);
+  --bazaar-line: var(--stall-edge);
+  --bazaar-ink: var(--chalk);
+  --bazaar-ink-dim: var(--haldi);
+  --bazaar-saffron: var(--lantern);
+  --bazaar-marigold: var(--marigold);
+  --bazaar-green: var(--henna);
+  --bazaar-red: var(--kumkum);
+  --bazaar-blue: var(--neel);
 }
 
 body {
-  background: var(--bazaar-bg);
-  color: var(--bazaar-ink);
+  background: var(--night);
+  color: var(--chalk);
+  font-family: "Alegreya Sans", system-ui, sans-serif;
+}
+
+/* Sign-board display — used with restraint: HUD numbers, page titles */
+.font-sign {
+  font-family: "Anton", "Alegreya Sans", sans-serif;
+  letter-spacing: 0.01em;
+}
+
+/* Bill-book mono — receipts, hashes, amounts */
+.font-receipt {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+/* Lantern glow pool — for stall lamps and the live dot */
+.lantern-glow {
+  box-shadow: 0 0 18px 2px color-mix(in srgb, var(--lantern) 35%, transparent);
+}
+
+/* The receipt roll — perforated tear edge, like the bill book */
+.receipt-roll {
+  background:
+    repeating-linear-gradient(to bottom, var(--stall) 0 26px, var(--night-deep) 26px 28px);
+}
+.receipt-card {
+  position: relative;
+  background: #f6ecd9;
+  color: #2a1c12;
+  border-radius: 2px;
+}
+.receipt-card::after {
+  /* perforation at the tear line */
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -5px;
+  height: 10px;
+  background:
+    radial-gradient(circle at 5px 5px, transparent 4px, var(--night) 4px) top left / 10px 10px repeat-x;
+  opacity: 0.9;
+}
+
+/* Rubber stamp — thunk in with a slight rotation, like the shop's seal */
+@keyframes stamp-in {
+  0% { transform: scale(1.6) rotate(-14deg); opacity: 0; }
+  60% { transform: scale(0.95) rotate(-6deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-6deg); opacity: 1; }
+}
+.stamp {
+  animation: stamp-in 380ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  padding: 1px 6px;
+  display: inline-block;
+  transform: rotate(-6deg);
+}
+
+/* The shopkeeper's bell — swings when a gate trips */
+@keyframes bell-swing {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(24deg); }
+  35% { transform: rotate(-19deg); }
+  55% { transform: rotate(12deg); }
+  75% { transform: rotate(-7deg); }
+  90% { transform: rotate(3deg); }
+}
+.bell-swing { animation: bell-swing 900ms ease-in-out 2; transform-origin: top center; }
+
+/* Card tear-out from the roll */
+@keyframes tear-out {
+  from { transform: translateY(-14px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.tear-out { animation: tear-out 320ms ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bell-swing, .tear-out, .stamp { animation: none; }
+  * { transition-duration: 0.01ms !important; }
+}
+
+/* Visible keyboard focus, everywhere */
+:focus-visible {
+  outline: 2px solid var(--lantern);
+  outline-offset: 2px;
 }

@@ -14,6 +14,9 @@ export async function GET(req: Request) {
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       let closed = false;
+      // Greet immediately — headers alone leave EventSource in CONNECTING
+      // until the first byte arrives.
+      controller.enqueue(encoder.encode(`: bazaar\n\n`));
       const send = (event: BazaarEvent) => {
         if (closed) return;
         try {

@@ -25,7 +25,7 @@ export function useBazaarStream(): { connected: boolean; last: LiveEvent[] } {
     es.onmessage = (m) => {
       try {
         const e = JSON.parse(m.data) as LiveEvent;
-        setLast((prev) => [e, ...prev].slice(0, 120));
+        setLast((prev) => [e, ...prev].slice(0, 160));
       } catch {
         // ignore malformed frames
       }
@@ -36,16 +36,11 @@ export function useBazaarStream(): { connected: boolean; last: LiveEvent[] } {
   return { connected, last };
 }
 
-/** Stable per-session color index for agent dots (fixed assignment, never cycled mid-run). */
-const DOT_CLASSES = [
-  "bg-(--bazaar-saffron)",
-  "bg-(--bazaar-blue)",
-  "bg-(--bazaar-green)",
-  "bg-(--bazaar-marigold)",
-];
+/** Stable per-session hue for agent dots (fixed assignment, never cycled). */
+export const DOT_HUES = ["var(--lantern)", "var(--neel)", "#4cc9b0", "var(--marigold)"];
 
-export function dotClassFor(sessionId: string): string {
+export function hueFor(sessionId: string): string {
   let h = 0;
   for (let i = 0; i < sessionId.length; i++) h = (h * 31 + sessionId.charCodeAt(i)) >>> 0;
-  return DOT_CLASSES[h % DOT_CLASSES.length];
+  return DOT_HUES[h % DOT_HUES.length];
 }
