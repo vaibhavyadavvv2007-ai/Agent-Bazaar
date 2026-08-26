@@ -100,14 +100,14 @@ export default function CheckoutPage({ params }: { params: Promise<{ rowId: stri
             <p className="rounded-lg border border-red-900 bg-red-950/40 px-3 py-2 text-red-300">⚠️ {error}</p>
           ) : ["captured", "recovered"].includes(status?.status ?? "") ? (
             <p className="rounded-lg border border-emerald-800 bg-emerald-950/40 px-3 py-2 text-emerald-300">
-              ✅ Payment captured — the ledger has the receipt.
+              ✅ Payment captured; the ledger has the receipt.
             </p>
           ) : status?.status === "failed" ? (
             <p className="rounded-lg border border-red-800 bg-red-950/40 px-3 py-2 text-red-300">
-              ⚠️ Payment failed ({status.failure_reason}) — the agent may retry on the same signed cart.
+              ⚠️ Payment failed ({status.failure_reason}). The agent may retry on the same signed cart.
             </p>
           ) : opened ? (
-            <p className="text-(--bazaar-ink-dim)">🔔 Checkout open — settle with a test instrument (UPI: success@razorpay).</p>
+            <p className="text-(--bazaar-ink-dim)">🔔 Checkout open. Settle with a test instrument (UPI: success@razorpay).</p>
           ) : (
             <p className="text-(--bazaar-ink-dim)">Opening Razorpay Checkout…</p>
           )}

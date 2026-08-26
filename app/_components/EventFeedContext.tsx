@@ -37,7 +37,7 @@ export function useBazaarStream(): { connected: boolean; last: LiveEvent[] } {
 }
 
 /** Stable per-session hue for agent dots (fixed assignment, never cycled). */
-export const DOT_HUES = ["var(--lantern)", "var(--neel)", "#4cc9b0", "var(--marigold)"];
+export const DOT_HUES = ["var(--seal)", "var(--rule-blue)", "var(--henna)", "var(--thread)"];
 
 export function hueFor(sessionId: string): string {
   let h = 0;

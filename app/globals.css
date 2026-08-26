@@ -1,101 +1,183 @@
 @import "tailwindcss";
 
 /*
- * ── The Agent Bazaar: design tokens ────────────────────────────────
- * A night street market, lit by lanterns. Roasted-brown ground (never
- * generic near-black), lantern-saffron light, marigold garlands.
- *
- * Type: Anton (hand-painted stall boards) · Alegreya Sans (warm body)
- *       IBM Plex Mono (the bill-book receipt)
- * Signature: the receipt-roll ledger + the shopkeeper's bell.
+ * The Gazette of Autonomous Spending — design tokens.
+ * Aged gazette paper, ink black, seal red, security-thread gold.
+ * Spectral (masthead + body), Courier Prime (serials, clauses, receipts).
  */
 :root {
-  --night: #17100d;        /* street ground */
-  --night-deep: #100b09;   /* behind stalls */
-  --stall: #261b14;        /* wooden plank panels */
-  --stall-edge: #3d2c20;   /* plank borders */
-  --lantern: #f5a524;      /* saffron lantern light — the accent */
-  --lantern-soft: #f7c05a;
-  --marigold: #fb7a1e;     /* garlands · gate/warning (reserved) */
-  --henna: #46b571;        /* captured / money-good (reserved) */
-  --kumkum: #e5484d;       /* denied / failed (reserved) */
-  --neel: #6aa5f8;         /* agent identity hue (categorical) */
-  --haldi: #d8c29a;        /* turmeric-dust secondary ink */
-  --chalk: #f6ecd9;        /* primary ink — warm white */
+  --paper: #f4eeda;
+  --paper-deep: #ece4cb;
+  --paper-edge: #d8cdb0;
+  --ink: #1c1a17;
+  --ink-soft: #57503f;
+  --ink-faint: #6f6552;
+  --seal: #b3282d;
+  --seal-soft: #c9564f;
+  --thread: #b98a2f;
+  --rule-blue: #2c4a7c;
+  --henna: #1f6f43;
 
-  /* Legacy aliases — pages written against the first palette keep working */
-  --bazaar-bg: var(--night);
-  --bazaar-panel: var(--stall);
-  --bazaar-line: var(--stall-edge);
-  --bazaar-ink: var(--chalk);
-  --bazaar-ink-dim: var(--haldi);
-  --bazaar-saffron: var(--lantern);
-  --bazaar-marigold: var(--marigold);
+  /* Legacy aliases — dashboard, approvals and checkout still read these. */
+  --bazaar-bg: var(--paper);
+  --bazaar-panel: #faf6ea;
+  --bazaar-panel-deep: var(--paper-deep);
+  --bazaar-line: var(--paper-edge);
+  --bazaar-ink: var(--ink);
+  --bazaar-ink-dim: var(--ink-soft);
+  --bazaar-ink-faint: var(--ink-faint);
+  --bazaar-saffron: var(--seal);
+  --bazaar-marigold: var(--thread);
   --bazaar-green: var(--henna);
-  --bazaar-red: var(--kumkum);
-  --bazaar-blue: var(--neel);
+  --bazaar-red: var(--seal);
+  --bazaar-blue: var(--rule-blue);
 }
 
 body {
-  background: var(--night);
-  color: var(--chalk);
-  font-family: "Alegreya Sans", system-ui, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Spectral", Georgia, serif;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(28, 26, 23, 0.016) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(28, 26, 23, 0.012) 0 1px, transparent 1px 4px);
 }
 
-/* Sign-board display — used with restraint: HUD numbers, page titles */
-.font-sign {
-  font-family: "Anton", "Alegreya Sans", sans-serif;
+.font-masthead {
+  font-family: "Spectral", Georgia, serif;
+  font-weight: 700;
   letter-spacing: 0.01em;
 }
 
-/* Bill-book mono — receipts, hashes, amounts */
-.font-receipt {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+.font-clause {
+  font-family: "Courier Prime", "Courier New", monospace;
 }
 
-/* Lantern glow pool — for stall lamps and the live dot */
-.lantern-glow {
-  box-shadow: 0 0 18px 2px color-mix(in srgb, var(--lantern) 35%, transparent);
+.double-rule {
+  border-top: 3px double var(--ink);
+  border-bottom: 1px solid var(--ink);
+  height: 6px;
 }
 
-/* The receipt roll — perforated tear edge, like the bill book */
-.receipt-roll {
-  background:
-    repeating-linear-gradient(to bottom, var(--stall) 0 26px, var(--night-deep) 26px 28px);
-}
-.receipt-card {
-  position: relative;
-  background: #f6ecd9;
-  color: #2a1c12;
-  border-radius: 2px;
-}
-.receipt-card::after {
-  /* perforation at the tear line */
-  content: "";
-  position: absolute;
-  left: 0; right: 0; bottom: -5px;
-  height: 10px;
-  background:
-    radial-gradient(circle at 5px 5px, transparent 4px, var(--night) 4px) top left / 10px 10px repeat-x;
-  opacity: 0.9;
+.rule-box {
+  border: 1.5px solid var(--ink);
+  background: #faf6ea;
 }
 
-/* Rubber stamp — thunk in with a slight rotation, like the shop's seal */
-@keyframes stamp-in {
-  0% { transform: scale(1.6) rotate(-14deg); opacity: 0; }
-  60% { transform: scale(0.95) rotate(-6deg); opacity: 1; }
-  100% { transform: scale(1) rotate(-6deg); opacity: 1; }
+.security-thread {
+  background-image: repeating-linear-gradient(
+    -55deg,
+    transparent 0 7px,
+    color-mix(in srgb, var(--thread) 55%, transparent) 7px 8px
+  );
+  height: 5px;
 }
-.stamp {
-  animation: stamp-in 380ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+
+.security-thread-band {
+  border-top: 1px solid var(--thread);
+  border-bottom: 1px solid var(--thread);
+  background-image: repeating-linear-gradient(
+    -55deg,
+    transparent 0 7px,
+    color-mix(in srgb, var(--thread) 45%, transparent) 7px 8px
+  );
+  height: 9px;
+}
+
+@keyframes seal-in {
+  0% { transform: scale(1.7) rotate(-16deg); opacity: 0; }
+  60% { transform: scale(0.96) rotate(-8deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-7deg); opacity: 1; }
+}
+
+.seal {
+  animation: seal-in 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   border: 2px solid currentColor;
-  border-radius: 4px;
-  padding: 1px 6px;
+  border-radius: 3px;
+  padding: 1px 7px;
   display: inline-block;
-  transform: rotate(-6deg);
+  transform: rotate(-7deg);
+  font-family: "Courier Prime", monospace;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 0 1px rgba(28, 26, 23, 0.14);
 }
 
-/* The shopkeeper's bell — swings when a gate trips */
+.seal-red { color: var(--seal); }
+.seal-green { color: var(--henna); }
+.seal-gold { color: var(--thread); }
+
+.digits {
+  font-family: "Courier Prime", monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.digits .digit {
+  display: inline-block;
+  min-width: 0.62em;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(28, 26, 23, 0.055), transparent 65%);
+  border: 1px solid var(--paper-edge);
+  border-radius: 2px;
+  margin-right: 2px;
+  padding: 0 1px;
+  color: var(--ink);
+}
+
+.fig {
+  font-family: "Courier Prime", monospace;
+  font-size: 10.5px;
+  color: var(--ink-faint);
+  line-height: 1.3;
+}
+
+.fig .pointer {
+  display: inline-block;
+  width: 26px;
+  border-top: 1px solid var(--ink-faint);
+  vertical-align: middle;
+  margin-right: 5px;
+}
+
+@keyframes typeset-in {
+  0% { opacity: 0; transform: translateY(-6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.typeset-in {
+  animation: typeset-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Number ticker (Emil vocabulary): a digit rolls up into place when the
+   value changes. Purpose: state transition on the settlement totals. */
+@keyframes digit-roll {
+  0% { transform: translateY(0.55em); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.digit-roll {
+  animation: digit-roll 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Press feedback: physical push on activation. */
+.press {
+  transition: transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.press:active {
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .digit-roll,
+  .press {
+    animation: none;
+    transition: none;
+  }
+}
+
 @keyframes bell-swing {
   0%, 100% { transform: rotate(0deg); }
   15% { transform: rotate(24deg); }
@@ -104,22 +186,49 @@ body {
   75% { transform: rotate(-7deg); }
   90% { transform: rotate(3deg); }
 }
-.bell-swing { animation: bell-swing 900ms ease-in-out 2; transform-origin: top center; }
 
-/* Card tear-out from the roll */
-@keyframes tear-out {
-  from { transform: translateY(-14px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+.bell-swing {
+  animation: bell-swing 900ms ease-in-out 2;
+  transform-origin: top center;
 }
-.tear-out { animation: tear-out 320ms ease-out both; }
+
+:focus-visible {
+  outline: 2px solid var(--seal);
+  outline-offset: 2px;
+}
+
+/* Browser surfaces, themed: the parts we did not draw still carry the world. */
+::selection {
+  background: color-mix(in srgb, var(--seal) 22%, transparent);
+  color: var(--ink);
+}
+
+* {
+  caret-color: var(--seal);
+}
+
+.scroll-column {
+  scrollbar-width: thin;
+  scrollbar-color: var(--paper-edge) transparent;
+}
+.scroll-column::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll-column::-webkit-scrollbar-thumb {
+  background: var(--paper-edge);
+  border-radius: 4px;
+}
+.scroll-column::-webkit-scrollbar-track {
+  background: transparent;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .bell-swing, .tear-out, .stamp { animation: none; }
-  * { transition-duration: 0.01ms !important; }
-}
-
-/* Visible keyboard focus, everywhere */
-:focus-visible {
-  outline: 2px solid var(--lantern);
-  outline-offset: 2px;
+  .seal,
+  .typeset-in,
+  .bell-swing {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
 }

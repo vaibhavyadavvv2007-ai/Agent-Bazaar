@@ -50,9 +50,9 @@ export default function Approvals() {
       const json = (await res.json()) as { rail?: { checkout_url?: string }; note?: string };
       if (decision === "approved" && json.rail?.checkout_url) {
         window.open(json.rail.checkout_url, "_blank", "noopener");
-        setNote("Gate opened — hosted payment page launched in a new tab.");
+        setNote("Gate opened; the hosted payment page launched in a new tab.");
       } else if (decision === "rejected") {
-        setNote("Gate kept shut — the agent will receive a structured refusal.");
+        setNote("Gate kept shut; the agent will receive a structured refusal.");
       }
     } finally {
       setBusy(null);
@@ -73,7 +73,7 @@ export default function Approvals() {
 
       {queue.length === 0 ? (
         <div className="rounded-xl border border-dashed border-(--bazaar-line) p-10 text-center text-(--bazaar-ink-dim)">
-          No bells ringing. The bazaar is calm — agents are inside their bounds.
+          No bells ringing. The bazaar is calm; agents are inside their bounds.
           <div className="mt-3 text-xs">A gated transaction parks here with its named rule hits.</div>
         </div>
       ) : (

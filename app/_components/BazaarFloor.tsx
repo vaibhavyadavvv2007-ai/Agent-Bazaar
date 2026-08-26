@@ -109,7 +109,7 @@ export function Street() {
   async function decide(decision: "approved" | "rejected") {
     if (!bell) return;
     const seconds = ((Date.now() - bell.rangAt) / 1000).toFixed(1);
-    setBellNote(decision === "approved" ? `Gate opened in ${seconds}s — rails issuing…` : `Refused in ${seconds}s — the agent gets a structured no.`);
+    setBellNote(decision === "approved" ? `Gate opened in ${seconds}s; rails issuing…` : `Refused in ${seconds}s; the agent gets a structured no.`);
     await fetch("/api/approvals", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -120,142 +120,182 @@ export function Street() {
   }
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-(--stall-edge) bg-(--night-deep) p-3">
+    <section className="rule-box relative overflow-hidden rounded-none p-3">
         <header className="flex items-center gap-3 px-1 pb-2">
-          <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs ${connected ? "bg-emerald-950 text-emerald-300" : "bg-stone-800 text-stone-400"}`}>
-            <span className={`inline-block h-1.5 w-1.5 rounded-full ${connected ? "animate-pulse bg-emerald-400" : "bg-stone-500"}`} />
-            {connected ? "street live" : "connecting…"}
+          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 font-clause text-[11px] uppercase tracking-[0.14em] ${connected ? "bg-(--henna)/10 text-(--henna)" : "bg-(--paper-deep) text-(--ink-soft)"}`}>
+            <span className={`inline-block h-1.5 w-1.5 rounded-full ${connected ? "animate-pulse bg-(--henna)" : "bg-(--ink-faint)"}`} />
+            {connected ? "notice board · live" : "connecting…"}
           </span>
-          <span className="text-xs text-(--haldi)">every dot is a real agent session · every receipt a signed mandate</span>
+          <span className="font-clause text-[11px] text-(--ink-soft)">every notice is a real agent session · every clause a signed mandate</span>
         </header>
 
-        <svg viewBox={`0 0 ${W} 420`} className="min-w-[720px]" role="img" aria-label="Night bazaar street with stalls, lanterns and shopping agents">
-          {/* cobblestones */}
+        <svg viewBox={`0 0 ${W} 420`} className="min-w-[720px]" role="img" aria-label="The bazaar street, drawn as a gazette illustration: stalls, lamps and shopping agents">
+          {/* paper grid: faint ruled columns like a printed plate */}
           <defs>
-            <pattern id="cobble" width="26" height="22" patternUnits="userSpaceOnUse">
-              <path d="M0 22H26" stroke="var(--stall-edge)" strokeWidth="0.6" opacity="0.4" />
-              <path d="M26 0V22" stroke="var(--stall-edge)" strokeWidth="0.6" opacity="0.25" />
+            <pattern id="plate" width="52" height="52" patternUnits="userSpaceOnUse">
+              <path d="M0 52H52" stroke="var(--paper-edge)" strokeWidth="0.5" opacity="0.5" />
+              <path d="M52 0V52" stroke="var(--paper-edge)" strokeWidth="0.5" opacity="0.35" />
             </pattern>
-            <radialGradient id="lanternPool" cx="50%" cy="0%" r="80%">
-              <stop offset="0%" stopColor="var(--lantern)" stopOpacity="0.22" />
-              <stop offset="100%" stopColor="var(--lantern)" stopOpacity="0" />
-            </radialGradient>
           </defs>
-          <rect width={W} height="420" fill="url(#cobble)" />
+          <rect width={W} height="420" fill="url(#plate)" />
 
-          {/* the wire across the lane, lanterns hanging into the street */}
-          <line x1="0" y1="146" x2={W} y2="146" stroke="var(--stall-edge)" strokeWidth="2.5" />
+          {/* the wire across the lane, ink lamps hanging into the street */}
+          <line x1="0" y1="146" x2={W} y2="146" stroke="var(--ink)" strokeWidth="2" />
           {[110, 330, 550, 770, 990].map((x) => (
             <g key={x}>
-              <path d={`M ${x} 146 q 4 10 0 18`} stroke="var(--stall-edge)" strokeWidth="1.5" fill="none" />
-              <ellipse cx={x} cy="205" rx="72" ry="42" fill="url(#lanternPool)" />
-              <rect x={x - 7} y="162" width="14" height="26" rx="6" fill="var(--lantern)" opacity="0.95" />
-              <line x1={x - 7} y1="170" x2={x + 7} y2="170" stroke="var(--night-deep)" strokeWidth="1.2" opacity="0.5" />
-              <circle cx={x} cy="192" r="2" fill="var(--lantern)" />
+              <path d={`M ${x} 146 q 4 10 0 18`} stroke="var(--ink)" strokeWidth="1.5" fill="none" />
+              <rect x={x - 8} y="162" width="16" height="26" rx="3" fill="var(--paper)" stroke="var(--ink)" strokeWidth="1.5" />
+              <path d={`M ${x - 8} 170 h16 M ${x - 5} 176 h10`} stroke="var(--ink)" strokeWidth="1" />
+              <circle cx={x} cy="194" r="2.2" fill="var(--seal)" />
             </g>
           ))}
 
-          {/* stalls */}
+          {/* stalls — ink-line shopfronts with striped awnings */}
           {products.map((p) => {
             const s = stallPos(p);
             return (
               <g key={p.id} transform={`translate(${s.x}, ${s.y})`}>
-                <rect width="132" height="96" rx="9" fill="var(--stall)" stroke="var(--stall-edge)" />
-                <rect x="0" y="0" width="132" height="16" rx="9" fill="var(--stall-edge)" opacity="0.7" />
-                <text x="10" y="34" fontSize="17">{CATEGORY_EMOJI[p.category] ?? "🏪"}</text>
-                <text x="34" y="33" fontSize="11" fill="var(--chalk)" fontWeight="600" className="font-sign">
+                <rect width="132" height="96" rx="2" fill="var(--paper)" stroke="var(--ink)" strokeWidth="1.5" />
+                <path
+                  d="M0 16 h132 M8 16 l10 -12 h96 l10 12"
+                  stroke="var(--ink)"
+                  strokeWidth="1.5"
+                  fill="none"
+                />
+                <path d="M0 22 h132" stroke="var(--seal)" strokeWidth="2" opacity="0.85" />
+                <text x="10" y="40" fontSize="15">{CATEGORY_EMOJI[p.category] ?? "🏪"}</text>
+                <text x="32" y="40" fontSize="11.5" fill="var(--ink)" fontWeight="600" className="font-masthead" style={{ fontSize: 11 }}>
                   {p.title.length > 15 ? `${p.title.slice(0, 14)}…` : p.title}
                 </text>
-                <text x="34" y="49" fontSize="11" fill="var(--lantern)" className="font-receipt">
+                <text x="32" y="56" fontSize="11" fill="var(--seal)" className="font-clause">
                   {rupees(p.price_paise)}
                 </text>
-                <text x="10" y="82" fontSize="8.5" fill="var(--haldi)" className="font-receipt">
+                <text x="10" y="84" fontSize="8.5" fill="var(--ink-soft)" className="font-clause">
                   {p.sku} · stock {p.stock}
                 </text>
               </g>
             );
           })}
 
-          {/* agent dots with speech bubbles */}
+          {/* agents — ink monograms with speech notes */}
           {agents.map((a) => (
             <g key={a.sessionId} style={{ transform: `translate(${a.x}px, ${a.y}px)`, transition: "transform 900ms cubic-bezier(.4,0,.2,1)" }}>
               {a.bubble && (
                 <g>
-                  <rect x="-8" y="-58" width={Math.min(190, 8 + a.bubble.length * 6.1)} height="22" rx="8" fill="var(--stall)" stroke="var(--stall-edge)" />
-                  <text x="0" y="-43" fontSize="10.5" fill="var(--chalk)">{a.bubble}</text>
+                  <rect x="-8" y="-58" width={Math.min(190, 8 + a.bubble.length * 6.4)} height="22" rx="2" fill="var(--paper)" stroke="var(--ink)" strokeWidth="1" />
+                  <path d="M4 -36 l6 8 l6 -8" fill="var(--paper)" stroke="var(--ink)" strokeWidth="1" />
+                  <text x="0" y="-43" fontSize="10.5" fill="var(--ink)" className="font-clause">{a.bubble}</text>
                 </g>
               )}
-              <circle r="14" fill="var(--night-deep)" stroke={a.hue} strokeWidth="2.5" />
-              <text textAnchor="middle" dy="4.5" fontSize="14">🤖</text>
-              <text textAnchor="middle" y="30" fontSize="9" fill={a.hue} className="font-receipt">{a.name}</text>
+              <circle r="13" fill="var(--paper)" stroke="var(--ink)" strokeWidth="2" />
+              <text textAnchor="middle" dy="4" fontSize="11" fill="var(--seal)" className="font-masthead">A</text>
+              <text textAnchor="middle" y="30" fontSize="9" fill="var(--ink-soft)" className="font-clause">{a.name}</text>
             </g>
           ))}
 
           {/* the empty-street invitation */}
           {agents.length === 0 && (
-            <text x={W / 2} y={LANE_Y + 58} textAnchor="middle" fontSize="13" fill="var(--haldi)">
-              The street is quiet. Send an agent: POST /api/agents/run — or open this page next to a demo run.
+            <text x={W / 2} y={LANE_Y + 58} textAnchor="middle" fontSize="12.5" fill="var(--ink-soft)" className="font-clause">
+              The street is quiet. Send an agent: POST /api/agents/run and it will be notified here.
             </text>
           )}
         </svg>
 
-        {/* ══ THE BELL — gameplay moment ══ */}
+        {/* ══ SUMMONS — the gate wants a human ══ */}
         {bell && (
-          <div className="absolute right-4 top-12 w-72 rounded-xl border border-(--marigold) bg-black/85 p-3 shadow-2xl">
+          <div className="absolute right-4 top-12 w-72 border-2 border-(--seal) bg-(--paper) p-3 shadow-[0_10px_28px_rgba(28,26,23,0.22)]">
             <div className="flex items-center gap-2">
-              <span className="bell-swing inline-block text-2xl">🔔</span>
-              <span className="font-sign text-lg text-(--marigold)">GATE TRIPPED</span>
+              <svg viewBox="0 0 24 24" className="bell-swing inline-block h-6 w-6" aria-hidden="true">
+                <path
+                  d="M12 3c-3.2 0-5 2.4-5 5.5V13l-1.8 2.6c-.3.5 0 1.1.6 1.1h12.4c.6 0 .9-.6.6-1.1L17 13V8.5C17 5.4 15.2 3 12 3Z"
+                  fill="var(--paper)"
+                  stroke="var(--seal)"
+                  strokeWidth="1.7"
+                  strokeLinejoin="round"
+                />
+                <path d="M10 19a2 2 0 0 0 4 0" fill="none" stroke="var(--seal)" strokeWidth="1.7" strokeLinecap="round" />
+              </svg>
+              <span className="font-masthead text-lg uppercase tracking-wide text-(--seal)">Summons</span>
             </div>
-            <div className="mt-1 font-receipt text-sm text-(--chalk)">{rupees(bell.amount)}</div>
-            <div className="mt-0.5 text-xs text-(--haldi)">{bell.reason}</div>
+            <div className="mt-1 font-clause text-sm">{rupees(bell.amount)}</div>
+            <div className="mt-0.5 font-clause text-[11px] text-(--ink-soft)">{bell.reason}</div>
             <div className="mt-3 flex gap-2">
-              <button onClick={() => decide("approved")} className="flex-1 rounded-lg bg-(--henna) px-3 py-1.5 text-sm font-semibold text-black hover:brightness-110">
-                Open gate
+              <button onClick={() => decide("approved")} className="press flex-1 border border-(--henna) bg-(--henna)/10 px-3 py-1.5 font-clause text-sm font-bold text-(--henna) hover:bg-(--henna)/20">
+                Allow entry
               </button>
-              <button onClick={() => decide("rejected")} className="flex-1 rounded-lg border border-(--kumkum) px-3 py-1.5 text-sm font-semibold text-(--kumkum) hover:bg-red-950/50">
+              <button onClick={() => decide("rejected")} className="press flex-1 border border-(--seal) px-3 py-1.5 font-clause text-sm font-bold text-(--seal) hover:bg-(--seal)/10">
                 Refuse
               </button>
             </div>
-            <div className="mt-1.5 text-center text-[10px] text-(--haldi)">your latency is being measured</div>
+            <div className="fig mt-1.5 text-center"><span className="pointer" aria-hidden="true" />your latency is being recorded</div>
           </div>
         )}
-        {bellNote && <div className="absolute bottom-3 left-4 rounded-lg bg-black/70 px-3 py-1.5 text-xs text-(--lantern-soft)">{bellNote}</div>}
+        {bellNote && <div className="absolute bottom-3 left-4 border border-(--ink) bg-(--paper) px-3 py-1.5 font-clause text-xs">{bellNote}</div>}
       </section>
   );
 }
 
-/* ══ THE BILL BOOK — the audit trail as a receipt roll ═════════════ */
+/* ══ NOTIFICATIONS — the audit trail as numbered gazette clauses ═══ */
 
 export function BillBook() {
   const { last } = useBazaarStream();
-  const receipts = useMemo(() => reduceReceipts(last), [last]);
+  // Seed from the permanent record on load; the live stream continues it.
+  const [seeded, setSeeded] = useState<LiveEvent[]>([]);
+  useEffect(() => {
+    fetch("/api/events?limit=40")
+      .then((r) => r.json())
+      .then((d: { events: LiveEvent[] }) => setSeeded(d.events ?? []))
+      .catch(() => {});
+  }, []);
+  const merged = useMemo(() => {
+    const seen = new Set<string>();
+    const all: LiveEvent[] = [];
+    for (const e of [...seeded, ...last]) {
+      const id = e.id ?? `${e.type}:${e.ts}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      all.push(e);
+    }
+    return all; // oldest first
+  }, [seeded, last]);
+  const receipts = useMemo(() => reduceReceipts([...merged].reverse()), [merged]);
 
   return (
-    <aside className="rounded-2xl border border-(--stall-edge) bg-(--night-deep) p-3">
+    <aside className="rule-box h-fit p-3">
       <header className="flex items-baseline justify-between px-1 pb-2">
-        <h2 className="font-sign text-sm tracking-wide text-(--haldi)">BILL BOOK</h2>
-        <span className="font-receipt text-[10px] text-(--haldi)">append-only · tear-proof</span>
+        <h2 className="font-masthead text-sm uppercase tracking-[0.08em]">Notifications</h2>
+        <span className="font-clause text-[10px] uppercase tracking-[0.14em] text-(--ink-soft)">append-only</span>
       </header>
-      <div className="receipt-roll max-h-[560px] space-y-2.5 overflow-y-auto p-2.5">
+      <div className="security-thread-band" aria-hidden="true" />
+      <ol className="scroll-column max-h-[600px] space-y-2 overflow-y-auto p-1 pt-2">
         {receipts.length === 0 && (
-          <div className="rounded-lg border border-dashed border-(--stall-edge) p-4 text-center text-xs text-(--haldi)">
-            No bills yet. When agents spend, every mandate prints here — signed, stamped, permanent.
-          </div>
+          <li className="border border-dashed border-(--paper-edge) p-4 text-center font-clause text-xs text-(--ink-soft)">
+            No notifications yet. When agents spend, every mandate is notified here:
+            numbered, sealed, permanent.
+          </li>
         )}
-        {receipts.map((r) => (
-          <div key={r.key} className="receipt-card tear-out px-3 py-2 font-receipt text-[11px]">
-            {r.lines.map((l, i) => (
-              <div key={i} className={i === 0 ? "font-semibold" : "opacity-80"}>{l}</div>
+        {receipts.map((r, idx) => (
+          <li key={r.key} className="typeset-in border border-(--paper-edge) bg-[#faf6ea] px-3 py-2 font-clause text-[11px]">
+            <div className="flex items-baseline justify-between">
+              <span className="font-bold">No. {String(receipts.length - idx).padStart(3, "0")}</span>
+              <span className="text-[9px] text-(--ink-faint)">{r.ago}</span>
+            </div>
+            {r.lines.filter(Boolean).map((l, i) => (
+              <div key={i} className={i === 0 ? "font-semibold" : "text-(--ink-soft)"}>{l}</div>
             ))}
             {r.stamp && (
-              <div className={`stamp mt-1.5 text-[10px] font-bold uppercase ${r.stamp.tone === "good" ? "text-(--henna)" : r.stamp.tone === "warn" ? "text-(--marigold)" : "text-(--kumkum)"}`}>
+              <div
+                className={`seal mt-1.5 text-[10px] ${
+                  r.stamp.tone === "good" ? "seal-green" : r.stamp.tone === "warn" ? "seal-gold" : "seal-red"
+                }`}
+              >
                 {r.stamp.text}
               </div>
             )}
-            <div className="mt-1 text-right text-[9px] opacity-50">{r.ago}</div>
-          </div>
+          </li>
         ))}
-      </div>
+      </ol>
+      <div className="security-thread-band" aria-hidden="true" />
     </aside>
   );
 }

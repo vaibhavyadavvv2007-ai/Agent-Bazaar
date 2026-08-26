@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { MAX_TURNS, runAgentSession } from "@/lib/agents/harness";
+import { runAgentSession } from "@/lib/agents/harness";
 import { claudeAdapter } from "@/lib/agents/claude";
 import { geminiAdapter } from "@/lib/agents/gemini";
 
@@ -60,5 +60,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "agent run failed", detail: String(e) }, { status: 500 });
   }
 }
-
-export { MAX_TURNS };

@@ -63,7 +63,7 @@ export default function Dashboard() {
         <a href="/" className="text-sm underline decoration-(--bazaar-line) underline-offset-4">← bazaar floor</a>
       </header>
       <p className="mb-8 inline-block rounded-lg border border-(--bazaar-marigold)/60 bg-amber-950/30 px-3 py-1.5 text-xs font-medium text-amber-300">
-        ⚠️ {m?.label ?? "SYNTHETIC TRAFFIC"} — measured honestly from the ledger
+        ⚠️ {m?.label ?? "SYNTHETIC TRAFFIC"}: measured honestly from the ledger
       </p>
 
       {!m ? (
@@ -85,7 +85,7 @@ export default function Dashboard() {
           </section>
 
           <section className="mt-6 rounded-xl border border-(--bazaar-line) bg-(--bazaar-panel) p-4 text-sm text-(--bazaar-ink-dim)">
-            <span className="font-medium text-(--bazaar-ink)">Reading this page:</span> every transaction above walked a signed mandate chain and the policy gate before touching real test-mode rails. Failures are shown because they were engineered to happen — then recovered. Full trail:{" "}
+            <span className="font-medium text-(--bazaar-ink)">Reading this page:</span> every transaction above walked a signed mandate chain and the policy gate before touching real test-mode rails. Failures are shown because they were engineered to happen, then recovered. Full trail:{" "}
             <a href="/api/metrics" className="underline">/api/metrics</a>.
           </section>
         </>

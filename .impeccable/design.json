@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-26T13:00:00Z",
+  "title": "Design System: The Agent Bazaar Gazette",
+  "extensions": {
+    "colorMeta": {
+      "paper": { "role": "neutral", "displayName": "Gazette Paper", "canonical": "#f4eeda", "tonalRamp": ["#2a251c", "#453e30", "#635a45", "#847962", "#a89c82", "#c9bda2", "#e0d7bd", "#f4eeda"] },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#1c1a17", "tonalRamp": ["#1c1a17", "#2e2a24", "#423c33", "#57503f", "#6f6552", "#8a7f6a", "#b0a68f", "#d6cdb6"] },
+      "seal": { "role": "primary", "displayName": "Seal Red", "canonical": "#b3282d", "tonalRamp": ["#4a0f12", "#6b181c", "#8c2025", "#b3282d", "#c9564f", "#db8480", "#ebb3b0", "#f7e0df"] },
+      "thread": { "role": "secondary", "displayName": "Security-Thread Gold", "canonical": "#b98a2f", "tonalRamp": ["#3d2d0e", "#5a4315", "#7a5b1e", "#b98a2f", "#cba658", "#dcc088", "#ead9b8", "#f7efdf"] },
+      "rule-blue": { "role": "tertiary", "displayName": "Ledger-Rule Blue", "canonical": "#2c4a7c", "tonalRamp": ["#101b2e", "#182a47", "#213a60", "#2c4a7c", "#4a6a99", "#718fb5", "#a0b8d2", "#d4e0ec"] },
+      "henna": { "role": "tertiary", "displayName": "Henna Green", "canonical": "#1f6f43", "tonalRamp": ["#0c2b1a", "#12422a", "#175637", "#1f6f43", "#418a60", "#6ba682", "#9cc3ab", "#d0e5d8"] }
+    },
+    "typographyMeta": {
+      "masthead": { "displayName": "Masthead", "purpose": "The gazette name, once per page, uppercase." },
+      "clause": { "displayName": "Clause", "purpose": "Everything the ledger or machine produced: serials, hashes, amounts, stamps." }
+    },
+    "shadows": [
+      { "name": "lifted-hand", "value": "0 10px 28px rgba(28,26,23,0.22)", "purpose": "Only the Summons card casts a shadow: a document handed to the reader." }
+    ],
+    "motion": [
+      { "name": "ease-print", "value": "cubic-bezier(0.2, 0.8, 0.2, 1)", "purpose": "All state transitions: seals, digits, typeset reveals. No bounce." },
+      { "name": "seal-thunk", "value": "320ms scale(1.7 to 1) rotate(-16deg to -7deg)", "purpose": "A seal stamps once." },
+      { "name": "digit-roll", "value": "280ms translateY(0.55em to 0)", "purpose": "Settlement digits roll up on value change." },
+      { "name": "bell-swing", "value": "900ms ease-in-out x2", "purpose": "The drawn bell swings when a human is summoned." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Seal",
+      "kind": "custom",
+      "refersTo": "seal-approved",
+      "description": "Rubber-stamp status: rotated bordered word, stamps in once.",
+      "html": "<span class=\"ds-seal ds-seal-green\">ALLOWED</span>",
+      "css": ".ds-seal { display:inline-block; transform: rotate(-7deg); border:2px solid currentColor; border-radius:3px; padding:1px 7px; font-family:'Courier Prime',monospace; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; font-size:11px; } .ds-seal-green { color:#1f6f43; } .ds-seal-red { color:#b3282d; }"
+    },
+    {
+      "name": "Rule Box",
+      "kind": "card",
+      "refersTo": "rule-box",
+      "description": "The gazette's ruled container: square, ink border, inner-page fill.",
+      "html": "<div class=\"ds-rule-box\"><h3>STANDING ORDERS</h3><p>Binding on all agents.</p></div>",
+      "css": ".ds-rule-box { border:1.5px solid #1c1a17; background:#faf6ea; padding:16px; color:#1c1a17; font-family:Spectral,Georgia,serif; } .ds-rule-box h3 { font-weight:700; text-transform:uppercase; letter-spacing:0.08em; font-size:13px; margin:0 0 4px; } .ds-rule-box p { margin:0; font-size:15px; }"
+    },
+    {
+      "name": "Clause Notification",
+      "kind": "card",
+      "refersTo": "rule-box",
+      "description": "Numbered gazette clause with timestamp and seal.",
+      "html": "<div class=\"ds-clause\"><div class=\"ds-clause-head\"><b>No. 010</b><span>12:48:32</span></div><div>rails · checkout open</div><div>attempt 1 · ₹425</div><span class=\"ds-seal ds-seal-green\">ALLOWED</span></div>",
+      "css": ".ds-clause { border:1px solid #d8cdb0; background:#faf6ea; padding:8px 12px; font-family:'Courier Prime',monospace; font-size:11px; color:#1c1a17; } .ds-clause-head { display:flex; justify-content:space-between; } .ds-clause span { color:#6f6552; font-size:9px; } .ds-seal { display:inline-block; transform:rotate(-7deg); border:2px solid currentColor; border-radius:3px; padding:1px 7px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; margin-top:6px; font-size:10px; } .ds-seal-green { color:#1f6f43; }"
+    },
+    {
+      "name": "Instrument Digits",
+      "kind": "custom",
+      "refersTo": "digits",
+      "description": "Fixed-place settlement digits with roll-up on change.",
+      "html": "<span class=\"ds-digits\" aria-label=\"₹1,728\">₹<span class=\"ds-digit\">1</span><span class=\"ds-digit\">7</span><span class=\"ds-digit\">2</span><span class=\"ds-digit\">8</span></span>",
+      "css": ".ds-digits { font-family:'Courier Prime',monospace; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:0.06em; font-size:24px; color:#1c1a17; } .ds-digit { display:inline-block; min-width:0.62em; text-align:center; background:linear-gradient(180deg,rgba(28,26,23,0.055),transparent 65%); border:1px solid #d8cdb0; border-radius:2px; margin-right:2px; }"
+    },
+    {
+      "name": "Standing Order Clause",
+      "kind": "custom",
+      "refersTo": "rule-box",
+      "description": "Numbered order whose clause text re-typesets as the slider drags.",
+      "html": "<div class=\"ds-order\"><p><b>Order I.</b> <b>Daily Purse.</b> No agent shall spend more than <b>₹4,000</b> in one day.</p><input type=\"range\" min=\"100\" max=\"5000\" step=\"100\" value=\"4000\" aria-label=\"Amend this order\" /><span class=\"ds-seal ds-seal-green\">In force</span></div>",
+      "css": ".ds-order { border:1px solid #d8cdb0; background:#faf6ea; padding:12px; font-family:Spectral,Georgia,serif; font-size:13px; color:#1c1a17; } .ds-order p { margin:0; } .ds-order b { font-family:'Courier Prime',monospace; } .ds-order input { width:100%; accent-color:#b3282d; margin-top:8px; } .ds-seal { float:right; display:inline-block; transform:rotate(-7deg); border:2px solid currentColor; border-radius:3px; padding:1px 7px; font-family:'Courier Prime',monospace; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; font-size:9px; } .ds-seal-green { color:#1f6f43; }"
+    },
+    {
+      "name": "Summons Card",
+      "kind": "custom",
+      "refersTo": "summons-card",
+      "description": "The gate wants a human: the one element allowed to cast a shadow.",
+      "html": "<div class=\"ds-summons\"><b>SUMMONS</b><div class=\"ds-amt\">₹2,499</div><button class=\"ds-allow press\">Allow entry</button> <button class=\"ds-refuse press\">Refuse</button></div>",
+      "css": ".ds-summons { width:288px; border:2px solid #b3282d; background:#f4eeda; padding:12px; font-family:Spectral,Georgia,serif; color:#1c1a17; box-shadow:0 10px 28px rgba(28,26,23,0.22); } .ds-summons b { color:#b3282d; text-transform:uppercase; letter-spacing:0.04em; } .ds-amt { font-family:'Courier Prime',monospace; font-size:14px; margin:4px 0 8px; } .ds-summons button { flex:1; padding:6px 12px; font-family:'Courier Prime',monospace; font-weight:700; font-size:13px; cursor:pointer; transition:transform 120ms cubic-bezier(0.2,0.8,0.2,1); } .ds-summons button:active { transform:scale(0.98); } .ds-allow { border:1px solid #1f6f43; background:rgba(31,111,67,0.1); color:#1f6f43; } .ds-refuse { border:1px solid #b3282d; color:#b3282d; background:transparent; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Gazette of Autonomous Spending",
+    "overview": "Live AI-agent commerce rendered as an official government gazette: aged paper, ink, seal red, security-thread gold. Every money action is published as a numbered notification, clause-set in typewriter serials, sealed with a rubber stamp. The category default refused is the dark neon operations dashboard; the paper is picked from the use scene, a record read at a desk under office light.",
+    "keyCharacteristics": [
+      "Everything is ink on paper; color is reserved for authority marks",
+      "Status is stamped, never pill-ed; seals pair a word with color",
+      "The permanent record is visible before anything live happens"
+    ],
+    "rules": [
+      { "name": "The Published-Record Rule", "body": "Nothing is rendered as live state that is not also in the ledger.", "section": "colors" },
+      { "name": "The Ink-and-Seal Rule", "body": "Status is a stamped word, never a colored pill.", "section": "colors" },
+      { "name": "The Typewriter Rule", "body": "Courier Prime carries only what the machine or ledger produced.", "section": "typography" },
+      { "name": "The Lifted-Hand Rule", "body": "Only the Summons may cast a shadow.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do set every money figure in Courier Prime with tabular numerals",
+      "Do pair every seal word with its color",
+      "Do theme browser surfaces (caret, selection, scrollbars)"
+    ],
+    "donts": [
+      "Don't introduce rounding beyond the 3px paper edge",
+      "Don't use em-dashes in rendered strings",
+      "Don't add a second shadow style",
+      "Don't let seal red exceed roughly a tenth of any screen"
+    ]
+  }
+}

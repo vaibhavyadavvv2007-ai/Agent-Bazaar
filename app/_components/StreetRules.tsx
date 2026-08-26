@@ -3,13 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 
 /**
- * THE STREET RULES — the shopkeeper's walls.
- *
- * Sliders here write to the REAL policy_rules table via PUT /api/policy.
- * Move a wall, and the next agent cart meets it. Every change is announced
- * on the event stream (policy.updated) so the whole street sees it.
+ * STANDING ORDERS — the shopkeeper's walls as numbered gazette orders.
+ * Sliders write the REAL policy_rules via PUT /api/policy; the clause text
+ * re-typesets live as you drag (the specimen raise).
  */
-
 type Rule = {
   id: string;
   kind: "daily_cap" | "velocity" | "category_deny" | "max_single";
@@ -19,11 +16,11 @@ type Rule = {
 
 const rupees = (paise: number) => `₹${(paise / 100).toLocaleString("en-IN")}`;
 
-const RULE_META: Record<Rule["kind"], { title: string; blurb: string }> = {
-  daily_cap: { title: "Daily purse", blurb: "Max one agent can spend per day" },
-  max_single: { title: "Single-buy limit", blurb: "Above this, the bell rings for you" },
-  velocity: { title: "Crowd control", blurb: "Max payments per hour per agent" },
-  category_deny: { title: "Banned stall", blurb: "Agents can't touch this category" },
+const RULE_META: Record<Rule["kind"], { no: string; title: string }> = {
+  daily_cap: { no: "I", title: "Daily Purse" },
+  max_single: { no: "II", title: "Single Purchase Limit" },
+  velocity: { no: "III", title: "Velocity of Purchases" },
+  category_deny: { no: "IV", title: "Prohibited Goods" },
 };
 
 export default function StreetRules() {
@@ -49,7 +46,7 @@ export default function StreetRules() {
         body: JSON.stringify({ rule_id: rule.id, ...body }),
       });
       if (res.ok) {
-        setNote("Walls moved — the street enforces them now.");
+        setNote("The Standing Orders have been amended. The street enforces them now.");
         setTimeout(() => setNote(null), 3500);
         load();
       }
@@ -59,104 +56,144 @@ export default function StreetRules() {
   }
 
   return (
-    <section className="rounded-2xl border border-(--stall-edge) bg-(--night-deep) p-4">
+    <section className="rule-box p-4">
       <header className="flex items-baseline justify-between">
-        <h2 className="font-sign text-sm tracking-wide text-(--haldi)">STREET RULES — your walls</h2>
-        <span className="font-receipt text-[10px] text-(--haldi)">live enforcement</span>
+        <h2 className="font-masthead text-sm uppercase tracking-[0.08em]">Standing Orders</h2>
+        <span className="font-clause text-[10px] uppercase tracking-[0.14em] text-(--ink-soft)">
+          binding on all agents
+        </span>
       </header>
+      <div className="double-rule mt-2" aria-hidden="true" />
 
-      {note && <p className="mt-2 rounded-lg bg-emerald-950/50 px-3 py-1.5 text-xs text-emerald-300">{note}</p>}
+      {note && (
+        <p className="typeset-in mt-2 border border-(--henna) bg-(--henna)/10 px-3 py-1.5 font-clause text-xs text-(--henna)">
+          {note}
+        </p>
+      )}
 
-      <ul className="mt-3 space-y-4">
+      <ol className="mt-3 space-y-3">
         {rules.map((rule) => {
           const meta = RULE_META[rule.kind];
           const disabled = saving === rule.id;
+          const inForce = rule.enabled;
           return (
-            <li key={rule.id} className="rounded-xl border border-(--stall-edge) bg-(--stall) p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-sign text-sm">{meta.title}</div>
-                  <div className="text-[11px] text-(--haldi)">{meta.blurb}</div>
-                </div>
+            <li key={rule.id} className="border border-(--paper-edge) bg-[#faf6ea] p-3">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-[13px] leading-snug">
+                  <span className="font-clause font-bold">Order {meta.no}.</span>{" "}
+                  <span className="font-semibold">{meta.title}.</span>{" "}
+                  <ClauseText rule={rule} />
+                </p>
                 <button
-                  onClick={() => update(rule, { enabled: !rule.enabled })}
+                  onClick={() => update(rule, { enabled: !inForce })}
                   disabled={disabled}
-                  className={`h-5 w-9 rounded-full transition-colors ${rule.enabled ? "bg-(--henna)" : "bg-stone-700"}`}
-                  aria-label={`${rule.enabled ? "Disable" : "Enable"} ${meta.title}`}
+                  className={`seal press shrink-0 text-[9px] ${inForce ? "seal-green" : "seal-red"}`}
+                  aria-label={`${inForce ? "Repeal" : "Restore"} Order ${meta.no}`}
                 >
-                  <span className={`block h-4 w-4 rounded-full bg-white transition-transform ${rule.enabled ? "translate-x-4.5" : "translate-x-0.5"}`} />
+                  {inForce ? "In force" : "Repealed"}
                 </button>
               </div>
 
               {rule.kind === "daily_cap" && (
-                <Slider
+                <Drag
                   min={100} max={5000} step={100}
                   value={(rule.config.limit_paise ?? 500000) / 100}
-                  format={(v) => `₹${v.toLocaleString("en-IN")} / day`}
-                  disabled={disabled || !rule.enabled}
+                  disabled={disabled || !inForce}
                   onCommit={(v) => update(rule, { limit_inr: v })}
                 />
               )}
               {rule.kind === "max_single" && (
-                <Slider
+                <Drag
                   min={100} max={3000} step={50}
                   value={(rule.config.limit_paise ?? 150000) / 100}
-                  format={(v) => `₹${v.toLocaleString("en-IN")} per buy`}
-                  disabled={disabled || !rule.enabled}
+                  disabled={disabled || !inForce}
                   onCommit={(v) => update(rule, { limit_inr: v })}
                 />
               )}
               {rule.kind === "velocity" && (
-                <Slider
+                <Drag
                   min={1} max={20} step={1}
                   value={rule.config.max_txns ?? 5}
-                  format={(v) => `${v} payments / hour`}
-                  disabled={disabled || !rule.enabled}
+                  disabled={disabled || !inForce}
                   onCommit={(v) => update(rule, { max_txns: v })}
                 />
               )}
               {rule.kind === "category_deny" && (
-                <div className="mt-2 font-receipt text-xs text-(--kumkum)">
-                  ⛔ {rule.config.category ?? "—"} — agents refused at the wall
-                </div>
+                <p className="fig mt-1.5">
+                  <span className="pointer" aria-hidden="true" />
+                  Fig. 4: goods of category “{rule.config.category ?? "—"}” are refused at the wall.
+                </p>
               )}
             </li>
           );
         })}
-      </ul>
+      </ol>
 
-      <p className="mt-3 text-[11px] leading-snug text-(--haldi)">
-        These are not game props — they are the same rules the policy engine enforces on every
-        real agent purchase. Tighten them and watch carts get held or denied.
+      <p className="fig mt-3">
+        <span className="pointer" aria-hidden="true" />
+        Fig. 5: these are not illustrations of rules. They are the rules. Amend an Order and the
+        next cart meets it.
       </p>
     </section>
   );
 }
 
-function Slider(props: {
+/** The clause text, re-typeset live from the rule's current config. */
+function ClauseText({ rule }: { rule: Rule }) {
+  switch (rule.kind) {
+    case "daily_cap":
+      return (
+        <>
+          No agent shall spend more than{" "}
+          <b className="font-clause">{rupees(rule.config.limit_paise ?? 0)}</b> in one day.
+        </>
+      );
+    case "max_single":
+      return (
+        <>
+          A single purchase exceeding{" "}
+          <b className="font-clause">{rupees(rule.config.limit_paise ?? 0)}</b> shall be held for
+          the Shopkeeper&apos;s decision.
+        </>
+      );
+    case "velocity":
+      return (
+        <>
+          No agent shall complete more than{" "}
+          <b className="font-clause">{rule.config.max_txns ?? 0} purchases per hour</b>.
+        </>
+      );
+    case "category_deny":
+      return (
+        <>
+          Goods of category <b className="font-clause">{rule.config.category ?? "—"}</b> are
+          refused to all agents.
+        </>
+      );
+  }
+}
+
+function Drag(props: {
   min: number; max: number; step: number; value: number;
-  format: (v: number) => string; disabled?: boolean;
-  onCommit: (v: number) => void;
+  disabled?: boolean; onCommit: (v: number) => void;
 }) {
   const [v, setV] = useState(props.value);
   useEffect(() => setV(props.value), [props.value]);
 
   return (
-    <div className="mt-2">
-      <div className="flex items-baseline justify-between">
-        <input
-          type="range"
-          min={props.min} max={props.max} step={props.step}
-          value={v}
-          disabled={props.disabled}
-          onChange={(e) => setV(Number(e.target.value))}
-          onMouseUp={() => props.onCommit(v)}
-          onTouchEnd={() => props.onCommit(v)}
-          onKeyUp={() => props.onCommit(v)}
-          className="h-1.5 w-full accent-(--lantern)"
-        />
-        <span className="ml-3 shrink-0 font-receipt text-xs text-(--lantern-soft)">{props.format(v)}</span>
-      </div>
-    </div>
+    <input
+      type="range"
+      min={props.min}
+      max={props.max}
+      step={props.step}
+      value={v}
+      disabled={props.disabled}
+      onChange={(e) => setV(Number(e.target.value))}
+      onMouseUp={() => props.onCommit(v)}
+      onTouchEnd={() => props.onCommit(v)}
+      onKeyUp={() => props.onCommit(v)}
+      className="mt-2 h-1.5 w-full accent-(--seal)"
+      aria-label="Amend this order"
+    />
   );
 }
