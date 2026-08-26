@@ -5,6 +5,7 @@ colors:
   paper: "#f4eeda"
   paper-deep: "#ece4cb"
   paper-edge: "#d8cdb0"
+  inner-page: "#faf6ea"
   ink: "#1c1a17"
   ink-soft: "#57503f"
   ink-faint: "#6f6552"
@@ -28,6 +29,21 @@ typography:
     fontFamily: "Courier Prime, Courier New, monospace"
     fontSize: "11px"
     fontWeight: 400
+  clause-lg:
+    fontFamily: "Courier Prime, Courier New, monospace"
+    fontSize: "13px"
+    fontWeight: 400
+  label:
+    fontFamily: "Courier Prime, Courier New, monospace"
+    fontSize: "11px"
+    fontWeight: 400
+    letterSpacing: "0.14em"
+    textTransform: "uppercase"
+  fig:
+    fontFamily: "Courier Prime, Courier New, monospace"
+    fontSize: "10.5px"
+    fontWeight: 400
+    lineHeight: 1.3
   digits:
     fontFamily: "Courier Prime, Courier New, monospace"
     fontWeight: 700

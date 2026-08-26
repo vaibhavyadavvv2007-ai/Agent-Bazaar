@@ -67,7 +67,7 @@ function Tile(props: {
   const chars = String(Math.round(props.value)).split("");
   return (
     <div className="px-4 py-3">
-      <div className="font-clause text-[10px] uppercase tracking-[0.14em] text-(--ink-soft)">
+      <div className="font-clause text-[11px] uppercase tracking-[0.14em] text-(--ink-soft)">
         {props.label}
       </div>
       <div className={`digits mt-1 text-2xl ${color}`} aria-label={`${props.prefix ?? ""}${props.value}`}>

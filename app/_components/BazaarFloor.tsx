@@ -264,7 +264,7 @@ export function BillBook() {
     <aside className="rule-box h-fit p-3">
       <header className="flex items-baseline justify-between px-1 pb-2">
         <h2 className="font-masthead text-sm uppercase tracking-[0.08em]">Notifications</h2>
-        <span className="font-clause text-[10px] uppercase tracking-[0.14em] text-(--ink-soft)">append-only</span>
+        <span className="font-clause text-[11px] uppercase tracking-[0.14em] text-(--ink-soft)">append-only</span>
       </header>
       <div className="security-thread-band" aria-hidden="true" />
       <ol className="scroll-column max-h-[600px] space-y-2 overflow-y-auto p-1 pt-2">
@@ -275,17 +275,17 @@ export function BillBook() {
           </li>
         )}
         {receipts.map((r, idx) => (
-          <li key={r.key} className="typeset-in border border-(--paper-edge) bg-[#faf6ea] px-3 py-2 font-clause text-[11px]">
+          <li key={r.key} className="typeset-in border border-(--paper-edge) bg-(--bazaar-panel) px-3 py-2 font-clause text-[11px]">
             <div className="flex items-baseline justify-between">
               <span className="font-bold">No. {String(receipts.length - idx).padStart(3, "0")}</span>
-              <span className="text-[9px] text-(--ink-faint)">{r.ago}</span>
+              <span className="fig text-(--ink-faint)">{r.ago}</span>
             </div>
             {r.lines.filter(Boolean).map((l, i) => (
               <div key={i} className={i === 0 ? "font-semibold" : "text-(--ink-soft)"}>{l}</div>
             ))}
             {r.stamp && (
               <div
-                className={`seal mt-1.5 text-[10px] ${
+                className={`seal mt-1.5 text-[11px] ${
                   r.stamp.tone === "good" ? "seal-green" : r.stamp.tone === "warn" ? "seal-gold" : "seal-red"
                 }`}
               >

@@ -60,7 +60,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ rowId: stri
         name: "The Agent Bazaar",
         description: "Agent purchase · mandate-verified cart",
         prefill: { name: "Agent Buyer", email: "agents@example.com", contact: "+919876543210" },
-        theme: { color: "#f59e0b" },
+        theme: { color: "#b3282d" },
         handler: () => {}, // truth comes from webhook/poll, not the browser
         modal: { ondismiss: () => setError("checkout dismissed before settlement") },
       });

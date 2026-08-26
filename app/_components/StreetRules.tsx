@@ -87,7 +87,7 @@ export default function StreetRules() {
                 <button
                   onClick={() => update(rule, { enabled: !inForce })}
                   disabled={disabled}
-                  className={`seal press shrink-0 text-[9px] ${inForce ? "seal-green" : "seal-red"}`}
+                  className={`seal press shrink-0 text-[11px] ${inForce ? "seal-green" : "seal-red"}`}
                   aria-label={`${inForce ? "Repeal" : "Restore"} Order ${meta.no}`}
                 >
                   {inForce ? "In force" : "Repealed"}
