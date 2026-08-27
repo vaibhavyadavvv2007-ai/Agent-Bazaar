@@ -23,14 +23,14 @@ type Metrics = {
 function Tile(props: { label: string; value: string; sub?: string; tone?: "good" | "warn" | "bad" }) {
   const toneIcon = props.tone === "good" ? "✅" : props.tone === "warn" ? "🔔" : props.tone === "bad" ? "⚠️" : "•";
   return (
-    <div className="rounded-xl border border-(--bazaar-line) bg-(--bazaar-panel) p-4">
+    <div className="border-[1.5px] border-(--bazaar-ink) bg-(--bazaar-panel) p-4">
       <div className="text-xs uppercase tracking-wider text-(--bazaar-ink-dim)">
         {props.label}
       </div>
       <div className="mt-1 text-3xl font-semibold tabular-nums">{props.value}</div>
       {props.sub && (
-        <div className="mt-1 text-xs text-(--bazaar-ink-dim)">
-          {props.tone && <span className="mr-1">{toneIcon}</span>}
+        <div className="mt-1 font-clause text-xs text-(--bazaar-ink-dim)">
+          {props.tone && <span className={`mr-1 seal ${props.tone === "good" ? "seal-green" : props.tone === "warn" ? "seal-gold" : "seal-red"}`}>{toneIcon}</span>}
           {props.sub}
         </div>
       )}
@@ -58,12 +58,12 @@ export default function Dashboard() {
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
-      <header className="mb-2 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">📊 Merchant Dashboard</h1>
-        <a href="/" className="text-sm underline decoration-(--bazaar-line) underline-offset-4">← bazaar floor</a>
+      <header className="mb-2 flex flex-wrap items-center justify-between gap-3 border-b-2 border-(--bazaar-ink) pb-4">
+        <h1 className="font-masthead text-2xl font-bold tracking-tight uppercase">Merchant Dashboard</h1>
+        <a href="/" className="font-clause text-sm underline decoration-(--bazaar-line) underline-offset-4 hover:text-(--bazaar-marigold)">← return to floor</a>
       </header>
-      <p className="mb-8 inline-block rounded-lg border border-(--bazaar-marigold)/60 bg-amber-950/30 px-3 py-1.5 text-xs font-medium text-amber-300">
-        ⚠️ {m?.label ?? "SYNTHETIC TRAFFIC"}: measured honestly from the ledger
+      <p className="mb-8 mt-4 inline-block border-[1.5px] border-(--bazaar-ink) bg-(--bazaar-panel) px-3 py-1.5 font-clause text-xs font-bold uppercase tracking-wider text-(--bazaar-ink)">
+        [ synthetic traffic ] measured honestly from the ledger
       </p>
 
       {!m ? (
@@ -84,9 +84,9 @@ export default function Dashboard() {
             <Tile label="Sessions" value={String(Object.values(m.sessions_by_provider).reduce((a, b) => a + b, 0))} sub={Object.entries(m.sessions_by_provider).map(([k, v]) => `${k}:${v}`).join(" · ") || "none yet"} />
           </section>
 
-          <section className="mt-6 rounded-xl border border-(--bazaar-line) bg-(--bazaar-panel) p-4 text-sm text-(--bazaar-ink-dim)">
-            <span className="font-medium text-(--bazaar-ink)">Reading this page:</span> every transaction above walked a signed mandate chain and the policy gate before touching real test-mode rails. Failures are shown because they were engineered to happen, then recovered. Full trail:{" "}
-            <a href="/api/metrics" className="underline">/api/metrics</a>.
+          <section className="mt-6 border-[1.5px] border-(--bazaar-ink) bg-(--bazaar-panel) p-4 font-clause text-xs text-(--bazaar-ink-dim)">
+            <span className="font-bold text-(--bazaar-ink)">Reading this page:</span> every transaction above walked a signed mandate chain and the policy gate before touching real test-mode rails. Failures are shown because they were engineered to happen, then recovered. Full trail:{" "}
+            <a href="/api/metrics" className="underline hover:text-(--bazaar-marigold)">/api/metrics</a>.
           </section>
         </>
       )}

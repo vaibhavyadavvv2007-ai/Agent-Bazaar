@@ -12,7 +12,7 @@ import { reconcileByReference } from "@/lib/razorpay/rail";
 /**
  * StoreTools — ONE implementation of "shop at the bazaar", consumed by every
  * front door: REST routes, the MCP server, and each provider harness. A
- * guarantee added here applies to Claude, Gemini and any MCP client alike;
+ * guarantee added here applies to Groq, Gemini and any MCP client alike;
  * there is exactly one place where spending semantics live.
  *
  * Tools are bound to a session at construction time, so agent-facing schemas
@@ -163,9 +163,9 @@ export function storeTools(session: SessionContext) {
 
       const guidance =
         result.status === "issued"
-          ? "Rails issued. Complete/settle via the hosted Razorpay page, then check get_payment_status."
+          ? "Rails issued. The human MUST complete payment in the UI. Stop and report this immediately. Do NOT poll get_payment_status."
           : result.status === "needs_approval"
-            ? "A policy rule tripped. The shopkeeper must approve — call get_payment_status periodically."
+            ? "A policy rule tripped. The shopkeeper must approve. Stop and report this immediately. Do NOT poll."
             : result.status === "denied"
               ? "Denied by policy. Do NOT retry the same cart; adjust within the stated reasons."
               : undefined;
@@ -219,7 +219,9 @@ export function storeTools(session: SessionContext) {
             ? "This attempt failed. You may request_checkout again on the same cart — a fresh attempt will be recorded."
             : row.status === "captured" || row.status === "recovered"
               ? "Payment complete. Receipt is in the audit trail."
-              : undefined,
+              : row.status === "checkout_open" || pending.rows.length > 0
+                ? "Waiting for human action. STOP immediately. Do NOT poll."
+                : undefined,
       };
     },
 

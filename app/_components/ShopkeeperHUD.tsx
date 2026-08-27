@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useBazaarStream } from "./EventFeedContext";
 
 /** SETTLEMENT SUMMARY — instrument digits, seeded from the ledger. */
@@ -24,8 +24,13 @@ export default function ShopkeeperHUD() {
       .catch(() => {});
   }, []);
 
+  const seenEvents = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     for (const e of last) {
+      if (!e.id || seenEvents.current.has(e.id)) continue;
+      seenEvents.current.add(e.id);
+
       if (e.type === "payment.captured") {
         const amt = Number(e.payload?.amount_paise ?? 0) / 100;
         setScore((s) => ({ ...s, captured: s.captured + amt }));

@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "The Agent Bazaar Gazette",
   description:
     "The official record of autonomous spending: AI agents shop with real (test-mode) money, every rupee notified, bounded and sealed. Razorpay AI Buildathon Track 01.",
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({
@@ -50,6 +57,13 @@ export default function RootLayout({
           carrying its provenance.
         */}
         {children}
+        <Toaster 
+          position="bottom-left"
+          toastOptions={{
+            className: "font-clause text-[11px] border-2 border-(--ink) bg-(--paper) text-(--ink) rounded-none shadow-[0_4px_16px_rgba(28,26,23,0.18)] p-3",
+            style: { fontFamily: "'Courier Prime', monospace" }
+          }} 
+        />
       </body>
     </html>
   );

@@ -12,6 +12,10 @@ import { createOrder, createPaymentLink } from "./client";
  * can trigger checkout imports this module (directly or via lib/server.ts).
  */
 
+if (typeof process !== "undefined" && !process.env.RAZORPAY_KEY_ID && !process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
+  console.warn("\n\x1b[33m⚠️ WARNING: RAZORPAY_KEY_ID is missing. Real test-mode payments will fail.\x1b[0m\n");
+}
+
 type PaymentRow = {
   id: string;
   mandate_id: string;

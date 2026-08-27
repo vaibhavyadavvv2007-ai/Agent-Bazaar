@@ -19,18 +19,44 @@ export function useBazaarStream(): { connected: boolean; last: LiveEvent[] } {
   const [last, setLast] = useState<LiveEvent[]>([]);
 
   useEffect(() => {
-    const es = new EventSource("/api/stream");
-    es.onopen = () => setConnected(true);
-    es.onerror = () => setConnected(false);
-    es.onmessage = (m) => {
-      try {
-        const e = JSON.parse(m.data) as LiveEvent;
-        setLast((prev) => [e, ...prev].slice(0, 160));
-      } catch {
-        // ignore malformed frames
-      }
+    let es: EventSource;
+    let reconnectTimer: ReturnType<typeof setTimeout>;
+    let retryCount = 0;
+    let active = true;
+
+    function connect() {
+      if (!active) return;
+      es = new EventSource("/api/stream");
+      es.onopen = () => {
+        setConnected(true);
+        retryCount = 0;
+      };
+      es.onerror = () => {
+        setConnected(false);
+        es.close();
+        if (active) {
+          const delay = Math.min(1000 * Math.pow(2, retryCount), 15000);
+          retryCount++;
+          reconnectTimer = setTimeout(connect, delay);
+        }
+      };
+      es.onmessage = (m) => {
+        try {
+          const e = JSON.parse(m.data) as LiveEvent;
+          setLast((prev) => [e, ...prev].slice(0, 160));
+        } catch {
+          // ignore malformed frames
+        }
+      };
+    }
+
+    connect();
+
+    return () => {
+      active = false;
+      clearTimeout(reconnectTimer);
+      if (es) es.close();
     };
-    return () => es.close();
   }, []);
 
   return { connected, last };

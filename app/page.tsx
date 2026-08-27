@@ -1,6 +1,8 @@
 import { Street, BillBook } from "./_components/BazaarFloor";
 import StreetRules from "./_components/StreetRules";
 import ShopkeeperHUD from "./_components/ShopkeeperHUD";
+import DispatchDrawer from "./_components/DispatchDrawer";
+import AgentTranscript from "./_components/AgentTranscript";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +44,9 @@ export default function Home() {
           <a className="underline decoration-(--rule-blue) underline-offset-2 hover:text-(--rule-blue)" href="/api/catalog?format=agent">
             Machine-readable catalog
           </a>
+          <a className="underline decoration-(--rule-blue) underline-offset-2 hover:text-(--rule-blue)" href="/receipts">
+            Audit Trail Receipts
+          </a>
         </nav>
       </header>
 
@@ -55,6 +60,7 @@ export default function Home() {
         <div className="space-y-4">
           <Street />
           <StreetRules />
+          <AgentTranscript />
         </div>
         <BillBook />
       </div>
@@ -81,6 +87,9 @@ export default function Home() {
           Fig. 9: the colophon. Every rupee moved on this page has a notification number.
         </p>
       </footer>
+
+      {/* ── Dispatch agent FAB + drawer ────────────────────────── */}
+      <DispatchDrawer />
     </main>
   );
 }

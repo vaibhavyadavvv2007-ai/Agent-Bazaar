@@ -3,7 +3,7 @@ import { evaluate, type PolicyRule, type SpendContext } from "./engine";
 
 // Fixed fixtures — no randomness, no clock dependence.
 const baseCtx: SpendContext = {
-  agent_id: "claude/gift-buyer",
+  agent_id: "groq/gift-buyer",
   spent_today_paise: 0,
   txns_in_window: 0,
   cart_total_paise: 20000,

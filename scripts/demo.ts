@@ -74,7 +74,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /* ── S1 — allow-path ─────────────────────────────────────────────── */
 async function s1() {
   section("S1 · allow-path: signed chain → instant rails");
-  const sid = await newSession("claude/gift-buyer", "claude", "Buying Diwali gifts for family");
+  const sid = await newSession("groq/gift-buyer", "groq", "Buying Diwali gifts for family");
   const intent = await makeIntent(sid, 1500, ["mithai", "chai"]);
   ok("intent signed by user", "max ₹1,500 · categories [mithai, chai]");
 

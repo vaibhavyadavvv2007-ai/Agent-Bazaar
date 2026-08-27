@@ -18,7 +18,7 @@ import { storeTools, TOOL_SCHEMAS, type StoreToolName } from "@/lib/tools/store"
 export const MAX_TURNS = 12;
 
 export type HarnessConfig = {
-  provider: "claude" | "gemini" | "mcp-client";
+  provider: "groq" | "gemini" | "mcp-client";
   agentId: string;
   persona: string;
   /** What the user asked this agent to do, e.g. "Buy Diwali sweets under ₹1500". */
@@ -59,7 +59,7 @@ HOW BUYING WORKS HERE (follow exactly, in order):
 3. quote_cart (optional) to sanity-check prices/stock without committing.
 4. propose_cart — commits you to an exact cart under your signed intent.
 5. request_checkout — the ONLY way money can move. The merchant's policy engine may ALLOW instantly, park it for HUMAN APPROVAL, or DENY with reasons.
-6. get_payment_status — ground truth after checkout. If waiting_for_human is true, report that gracefully and stop. If failed, you may retry ONCE via request_checkout on the same cart.
+6. get_payment_status — ground truth after checkout. If status is checkout_open or waiting_for_human is true, the human must complete the payment/approval. Report this gracefully and STOP immediately. Do NOT poll or loop. If failed, you may retry ONCE via request_checkout on the same cart.
 
 RULES OF THE HOUSE:
 - Never exceed your principal's stated maximum. If a desired cart doesn't fit, choose less.

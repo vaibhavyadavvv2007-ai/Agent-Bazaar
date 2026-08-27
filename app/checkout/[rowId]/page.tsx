@@ -61,7 +61,23 @@ export default function CheckoutPage({ params }: { params: Promise<{ rowId: stri
         description: "Agent purchase · mandate-verified cart",
         prefill: { name: "Agent Buyer", email: "agents@example.com", contact: "+919876543210" },
         theme: { color: "#b3282d" },
-        handler: () => {}, // truth comes from webhook/poll, not the browser
+        handler: async (response: any) => {
+          if (response.razorpay_payment_id) {
+            try {
+              await fetch("/api/checkout/capture", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_signature: response.razorpay_signature,
+                }),
+              });
+            } catch (e) {
+              console.error("Manual capture call failed", e);
+            }
+          }
+        },
         modal: { ondismiss: () => setError("checkout dismissed before settlement") },
       });
       rzp.open();
@@ -84,30 +100,31 @@ export default function CheckoutPage({ params }: { params: Promise<{ rowId: stri
 
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-2xl border border-(--bazaar-line) bg-(--bazaar-panel) p-6 text-center">
-        <p className="text-xs uppercase tracking-[0.25em] text-(--bazaar-saffron)">The Agent Bazaar</p>
-        <h1 className="mt-2 text-xl font-semibold">Cart mandate verified</h1>
+      <div className="w-full max-w-md border-[1.5px] border-(--bazaar-ink) bg-(--bazaar-panel) p-8 text-center shadow-[4px_4px_0_var(--bazaar-ink)]">
+        <p className="font-clause text-xs font-bold uppercase tracking-[0.25em] text-(--bazaar-ink-dim)">The Agent Bazaar</p>
+        <h1 className="font-masthead mt-4 text-2xl font-bold uppercase tracking-tight">Cart mandate verified</h1>
 
         {!error && status && (
-          <p className="mt-2 text-sm text-(--bazaar-ink-dim)">
-            ₹{(status.amount_paise / 100).toLocaleString("en-IN")} · order{" "}
-            <code className="text-xs">{status.rzp_order_id?.slice(0, 18)}…</code>
-          </p>
+          <div className="mt-4 border-t border-b border-(--bazaar-line) py-3 font-clause">
+            <span className="font-bold text-(--bazaar-ink)">₹{(status.amount_paise / 100).toLocaleString("en-IN")}</span>
+            <span className="mx-2 text-(--bazaar-ink-dim)">·</span>
+            <span className="text-xs text-(--bazaar-ink-dim)">order {status.rzp_order_id?.slice(0, 18)}…</span>
+          </div>
         )}
 
-        <div className="mt-6 text-sm">
+        <div className="mt-6 font-clause text-sm font-bold">
           {error ? (
-            <p className="rounded-lg border border-red-900 bg-red-950/40 px-3 py-2 text-red-300">⚠️ {error}</p>
+            <p className="border-[1.5px] border-(--bazaar-ink) bg-(--bazaar-panel) px-3 py-3 text-(--bazaar-ink)">[ ERROR ] {error}</p>
           ) : ["captured", "recovered"].includes(status?.status ?? "") ? (
-            <p className="rounded-lg border border-emerald-800 bg-emerald-950/40 px-3 py-2 text-emerald-300">
-              ✅ Payment captured; the ledger has the receipt.
+            <p className="border-[1.5px] border-(--bazaar-ink) bg-(--bazaar-panel) px-3 py-3 text-(--bazaar-ink)">
+              [ SEALED ] Payment captured; the ledger has the receipt.
             </p>
           ) : status?.status === "failed" ? (
-            <p className="rounded-lg border border-red-800 bg-red-950/40 px-3 py-2 text-red-300">
-              ⚠️ Payment failed ({status.failure_reason}). The agent may retry on the same signed cart.
+            <p className="border-[1.5px] border-(--bazaar-ink) bg-(--bazaar-panel) px-3 py-3 text-(--bazaar-ink)">
+              [ FAILED ] {status.failure_reason}. The agent may retry on the same signed cart.
             </p>
           ) : opened ? (
-            <p className="text-(--bazaar-ink-dim)">🔔 Checkout open. Settle with a test instrument (UPI: success@razorpay).</p>
+            <p className="text-(--bazaar-ink-dim)">[ CHECKOUT OPEN ] Settle with a test instrument (UPI: success@razorpay).</p>
           ) : (
             <p className="text-(--bazaar-ink-dim)">Opening Razorpay Checkout…</p>
           )}
@@ -116,7 +133,7 @@ export default function CheckoutPage({ params }: { params: Promise<{ rowId: stri
         {error && !opened && (
           <button
             onClick={() => window.location.reload()}
-            className="mt-4 rounded-lg border border-(--bazaar-line) px-4 py-1.5 text-sm hover:border-(--bazaar-saffron)"
+            className="mt-6 border-[1.5px] border-(--bazaar-ink) bg-transparent px-6 py-2 font-clause text-xs font-bold uppercase tracking-wider hover:bg-(--bazaar-ink) hover:text-(--paper)"
           >
             Retry
           </button>

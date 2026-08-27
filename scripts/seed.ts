@@ -69,4 +69,24 @@ for (const r of rules) {
   });
 }
 
-console.log(`seeded ${CATALOG.length} products + ${rules.length} policy rules`);
+// Pre-seed some historical events so the notice board is not empty
+const demoEvents = [
+  { id: "evt_1", ts: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), session_id: "demo-session-1", type: "agent.arrived", payload: { agent_id: "gemini/gift-buyer", persona: "A curious festival shopper" } },
+  { id: "evt_2", ts: new Date(Date.now() - 1000 * 60 * 59 * 2).toISOString(), session_id: "demo-session-1", type: "agent.tool.create_intent_mandate", payload: { result: { hash: "3a8b4e72fc" } } },
+  { id: "evt_3", ts: new Date(Date.now() - 1000 * 60 * 58 * 2).toISOString(), session_id: "demo-session-1", type: "mandate.signed.intent", payload: { max_amount_paise: 150000, hash: "3a8b4e72fc" } },
+  { id: "evt_4", ts: new Date(Date.now() - 1000 * 60 * 55 * 2).toISOString(), session_id: "demo-session-1", type: "agent.tool.propose_cart", payload: { result: { hash: "9f2c1b48da" } } },
+  { id: "evt_5", ts: new Date(Date.now() - 1000 * 60 * 54 * 2).toISOString(), session_id: "demo-session-1", type: "mandate.signed.cart", payload: { hash: "9f2c1b48da" } },
+  { id: "evt_6", ts: new Date(Date.now() - 1000 * 60 * 53 * 2).toISOString(), session_id: "demo-session-1", type: "agent.tool.request_checkout", payload: { args: { cart_hash: "9f2c1b48da" } } },
+  { id: "evt_7", ts: new Date(Date.now() - 1000 * 60 * 52 * 2).toISOString(), session_id: "demo-session-1", type: "policy.allow", payload: { amount_paise: 74900 } },
+  { id: "evt_8", ts: new Date(Date.now() - 1000 * 60 * 51 * 2).toISOString(), session_id: "demo-session-1", type: "payment.captured", payload: { amount_paise: 74900, rzp_order_id: "order_demo123" } },
+  { id: "evt_9", ts: new Date(Date.now() - 1000 * 60 * 50 * 2).toISOString(), session_id: "demo-session-1", type: "agent.left", payload: { turns: 6 } }
+];
+
+for (const e of demoEvents) {
+  await db().execute({
+    sql: `INSERT INTO events (id, ts, session_id, type, payload_json) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING`,
+    args: [e.id, e.ts, e.session_id, e.type, JSON.stringify(e.payload)]
+  });
+}
+
+console.log(`seeded ${CATALOG.length} products + ${rules.length} policy rules + ${demoEvents.length} historical events`);

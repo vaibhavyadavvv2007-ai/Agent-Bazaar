@@ -1,46 +1,67 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runAgentSession } from "@/lib/agents/harness";
-import { claudeAdapter } from "@/lib/agents/claude";
+import { groqAdapter } from "@/lib/agents/groq";
 import { geminiAdapter } from "@/lib/agents/gemini";
+import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 /**
  * POST /api/agents/run
- * { provider: "claude" | "gemini", agent_id, persona, task, user_max_inr,
+ * { provider: "groq" | "gemini", agent_id, persona, task, user_max_inr,
  *   categories?, model? }
  *
  * Runs ONE full bounded agent shopping session in-process. Long sessions are
  * meant to be driven locally (see docs/LIMITATIONS.md re: serverless).
- * Claude defaults to haiku for cost; pass "claude-opus-5" for hero takes.
+ * Groq defaults to openai/gpt-oss-120b.
  */
-type Body = {
-  provider?: "claude" | "gemini";
-  agent_id?: string;
-  persona?: string;
-  task?: string;
-  user_max_inr?: number;
-  categories?: string[];
-  model?: string;
-};
+const inputSchema = z.object({
+  provider: z.enum(["groq", "gemini"]).optional(),
+  agent_id: z.string(),
+  persona: z.string().optional(),
+  task: z.string(),
+  user_max_inr: z.number(),
+  categories: z.array(z.string()).optional(),
+  model: z.string().optional(),
+});
+
+// Simple in-memory rate limiter (resets on restart)
+const rateLimit = new Map<string, { count: number; windowStart: number }>();
+const MAX_REQUESTS = 10;
+const WINDOW_MS = 60000; // 1 minute
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  let record = rateLimit.get(ip);
+  if (!record || now - record.windowStart > WINDOW_MS) {
+    record = { count: 1, windowStart: now };
+  } else {
+    record.count++;
+  }
+  rateLimit.set(ip, record);
+  return record.count <= MAX_REQUESTS;
+}
 
 export async function POST(req: NextRequest) {
-  let body: Body;
+  const ip = req.headers.get("x-forwarded-for") ?? "anonymous";
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json({ error: "rate limit exceeded", detail: "too many agent sessions requested" }, { status: 429 });
+  }
+
+  let body;
   try {
-    body = (await req.json()) as Body;
-  } catch {
-    return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
+    body = inputSchema.parse(await req.json());
+  } catch (e) {
+    return NextResponse.json({ error: "invalid input", detail: String(e) }, { status: 400 });
   }
-  if (!body.agent_id || !body.task || !body.user_max_inr) {
-    return NextResponse.json({ error: "agent_id, task and user_max_inr are required" }, { status: 400 });
-  }
-  const provider = body.provider ?? "claude";
+
+  const provider = body.provider ?? "groq";
 
   const adapter =
     provider === "gemini"
       ? geminiAdapter(body.model ?? "gemini-2.5-flash")
-      : claudeAdapter(body.model ?? "claude-haiku-4-5");
+      : groqAdapter(body.model ?? "openai/gpt-oss-120b");
 
   try {
     const result = await runAgentSession(

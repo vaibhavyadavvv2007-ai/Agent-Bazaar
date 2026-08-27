@@ -1,7 +1,63 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { toast } from "sonner";
 import { useBazaarStream, hueFor, type LiveEvent } from "./EventFeedContext";
+
+// Simple procedural sound effects (no assets needed)
+function playSound(type: "bell" | "stamp" | "arrive" | "kaching") {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    const now = ctx.currentTime;
+    
+    if (type === "bell") {
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, now); // A5
+      osc.frequency.exponentialRampToValueAtTime(440, now + 0.5);
+      gain.gain.setValueAtTime(0.5, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 1.5);
+      osc.start(now);
+      osc.stop(now + 1.5);
+    } else if (type === "stamp") {
+      // percussive noise
+      const bufferSize = ctx.sampleRate * 0.1;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      noise.connect(gain);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+      noise.start(now);
+    } else if (type === "arrive") {
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.setValueAtTime(554.37, now + 0.1); // C#6
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.1, now + 0.05);
+      gain.gain.linearRampToValueAtTime(0, now + 0.3);
+      osc.start(now);
+      osc.stop(now + 0.3);
+    } else if (type === "kaching") {
+      osc.type = "square";
+      osc.frequency.setValueAtTime(1200, now);
+      osc.frequency.exponentialRampToValueAtTime(2000, now + 0.1);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.2, now + 0.05);
+      gain.gain.linearRampToValueAtTime(0, now + 0.4);
+      osc.start(now);
+      osc.stop(now + 0.4);
+    }
+  } catch (e) {
+    // Ignore audio errors (e.g. user hasn't interacted with page yet)
+  }
+}
 
 /**
  * THE PLAYABLE SHOPKEEPER FLOOR.
@@ -64,6 +120,7 @@ type Agent = {
   y: number;
   bubble: string;
   lastTs: number;
+  isLeft?: boolean;
 };
 
 type Receipt = {
@@ -95,14 +152,46 @@ export function Street() {
 
   const agents = useMemo(() => reduceAgents(last), [last]);
 
-  // Bell gameplay off the live stream.
+  // Bell gameplay & Toast notifications off the live stream.
+  const seenEvents = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     for (const e of last) {
+      if (!e.id || seenEvents.current.has(e.id)) continue;
+      seenEvents.current.add(e.id);
+
       if (e.type === "approval.requested" && e.payload?.approval_id) {
         const id = String(e.payload.approval_id);
         setBell((b) => (b?.approvalId === id ? b : { approvalId: id, amount: Number(e.payload?.amount_paise ?? 0), reason: firstReason(e) ?? "policy gate", rangAt: Date.now() }));
       }
       if (e.type === "approval.approved" || e.type === "approval.rejected") setBell(null);
+      
+      // Sounds and Toasts
+      if (e.type === "policy.gate") {
+        playSound("bell");
+        toast("Summons", { description: "An agent's transaction was paused for your review." });
+      } else if (e.type === "payment.checkout_open") {
+        playSound("bell");
+        const checkoutUrl = e.payload?.checkout_url as string | undefined;
+        if (checkoutUrl) {
+          toast.info("Agent requires payment — click to open checkout", {
+            description: "A checkout page is ready. Complete payment with test UPI: success@razorpay",
+            action: {
+              label: "Pay Now",
+              onClick: () => window.open(checkoutUrl, "_blank", "width=500,height=700"),
+            },
+            duration: Infinity,
+          });
+        }
+      } else if (e.type === "payment.captured") {
+        playSound("kaching");
+        toast.success(`Payment Captured`, { description: `₹${((Number(e.payload?.amount_paise) || 0) / 100).toLocaleString("en-IN")} settled.` });
+      } else if (e.type === "agent.arrived") {
+        playSound("arrive");
+        toast(`Agent arrived`, { description: `Persona: ${e.payload?.persona}` });
+      } else if (e.type.startsWith("mandate.signed")) {
+        playSound("stamp");
+      }
     }
   }, [last]);
 
@@ -178,20 +267,25 @@ export function Street() {
           })}
 
           {/* agents — ink monograms with speech notes */}
-          {agents.map((a) => (
-            <g key={a.sessionId} style={{ transform: `translate(${a.x}px, ${a.y}px)`, transition: "transform 900ms cubic-bezier(.4,0,.2,1)" }}>
-              {a.bubble && (
-                <g>
-                  <rect x="-8" y="-58" width={Math.min(190, 8 + a.bubble.length * 6.4)} height="22" rx="2" fill="var(--paper)" stroke="var(--ink)" strokeWidth="1" />
-                  <path d="M4 -36 l6 8 l6 -8" fill="var(--paper)" stroke="var(--ink)" strokeWidth="1" />
-                  <text x="0" y="-43" fontSize="10.5" fill="var(--ink)" className="font-clause">{a.bubble}</text>
-                </g>
-              )}
-              <circle r="13" fill="var(--paper)" stroke="var(--ink)" strokeWidth="2" />
-              <text textAnchor="middle" dy="4" fontSize="11" fill="var(--seal)" className="font-masthead">A</text>
-              <text textAnchor="middle" y="30" fontSize="9" fill="var(--ink-soft)" className="font-clause">{a.name}</text>
-            </g>
-          ))}
+          {agents.map((a) => {
+            const isRecent = Date.now() - a.lastTs < 2000;
+            return (
+              <g key={a.sessionId} style={{ transform: `translate(${a.x}px, ${a.y}px)`, opacity: a.isLeft ? 0 : 1, transition: "transform 700ms cubic-bezier(0.32, 0.72, 0, 1), opacity 2000ms ease-out 1500ms" }}>
+                {a.bubble && (
+                  <g>
+                    <rect x="-8" y="-58" width={Math.min(190, 8 + a.bubble.length * 6.4)} height="22" rx="2" fill="var(--paper)" stroke="var(--ink)" strokeWidth="1" />
+                    <path d="M4 -36 l6 8 l6 -8" fill="var(--paper)" stroke="var(--ink)" strokeWidth="1" />
+                    <text x="0" y="-43" fontSize="10.5" fill="var(--ink)" className="font-clause">{a.bubble}</text>
+                  </g>
+                )}
+                {/* pulsing ring behind active agents */}
+                {isRecent && !a.isLeft && <circle r="16" fill="none" stroke={a.hue} strokeWidth="1.5" className="agent-pulse" opacity="0.6" />}
+                <circle r="13" fill="var(--paper)" stroke="var(--ink)" strokeWidth="2" />
+                <text textAnchor="middle" dy="4" fontSize="11" fill="var(--seal)" className="font-masthead">A</text>
+                <text textAnchor="middle" y="30" fontSize="9" fill="var(--ink-soft)" className="font-clause">{a.name}</text>
+              </g>
+            );
+          })}
 
           {/* the empty-street invitation */}
           {agents.length === 0 && (
@@ -275,7 +369,7 @@ export function BillBook() {
           </li>
         )}
         {receipts.map((r, idx) => (
-          <li key={r.key} className="typeset-in border border-(--paper-edge) bg-(--bazaar-panel) px-3 py-2 font-clause text-[11px]">
+          <li key={r.key} className="typeset-in border border-(--paper-edge) bg-(--bazaar-panel) px-3 py-2 font-clause text-[11px]" style={{ animationDelay: `${idx * 60}ms` }}>
             <div className="flex items-baseline justify-between">
               <span className="font-bold">No. {String(receipts.length - idx).padStart(3, "0")}</span>
               <span className="fig text-(--ink-faint)">{r.ago}</span>
@@ -327,6 +421,7 @@ function reduceAgents(events: LiveEvent[]): Agent[] {
     const sku = args.sku ?? args.items?.[0]?.sku;
     const target = sku ? CATALOG_INDEX.get(sku) : undefined;
     let bubble = existing.bubble;
+    let isLeft = existing.isLeft;
 
     if (e.type === "agent.searched_catalog") bubble = `browsing ${args.query ? `"${args.query}"` : "the stalls"}…`;
     else if (e.type === "agent.tool.create_intent_mandate") bubble = "permission signed 🧾";
@@ -338,13 +433,17 @@ function reduceAgents(events: LiveEvent[]): Agent[] {
     else if (e.type === "payment.captured") bubble = "paid! 💰";
     else if (e.type === "payment.failed") bubble = "payment failed ⚠️";
     else if (e.type === "payment.recovered") bubble = "recovered 🛟";
-    else if (e.type === "agent.left") bubble = "left 👋";
+    else if (e.type === "agent.left") {
+      bubble = "left 👋";
+      isLeft = true;
+    }
 
     map.set(e.session_id, {
       ...existing,
       x: target ? apronPos(target).x : existing.x,
       y: target ? apronPos(target).y : existing.y,
       bubble,
+      isLeft,
       lastTs: Date.now(),
     });
   }
