@@ -28,7 +28,7 @@ export default async function ReceiptsPage() {
   const receipts = res.rows as unknown as ReceiptRow[];
 
   return (
-    <main className="min-h-screen bg-(--paper) p-6 font-clause text-(--ink) sm:p-12">
+    <main className="min-h-screen p-6 font-clause text-(--ink) sm:p-12">
       <header className="mb-12 border-b-2 border-double border-(--ink) pb-6">
         <div className="flex items-end justify-between">
           <div>
@@ -54,7 +54,7 @@ export default async function ReceiptsPage() {
             } catch {}
 
             return (
-              <div key={r.id} className="relative flex flex-col bg-[#faf9f6] p-6 shadow-[2px_2px_8px_rgba(0,0,0,0.05)] border border-(--paper-edge)">
+              <div key={r.id} className="relative flex flex-col rule-box p-6">
                 
                 <div className="text-center border-b border-dashed border-(--ink-faint) pb-4 mb-4">
                   <h2 className="font-masthead text-xl tracking-widest text-(--ink)">THE AGENT BAZAAR</h2>
@@ -92,7 +92,7 @@ export default async function ReceiptsPage() {
                   <span className="text-lg">₹{(r.amount_paise / 100).toLocaleString("en-IN")}</span>
                 </div>
                 
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-12 pointer-events-none opacity-80 z-0">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-12 pointer-events-none opacity-[0.12] z-0">
                    <div className="seal seal-green scale-150">SETTLED</div>
                 </div>
               </div>

@@ -118,7 +118,7 @@ export default function AgentTranscript() {
             
             {l.type === "tool" && (
               <div className="mt-1">
-                <div className="text-(--ink-soft) uppercase text-[10px] tracking-widest font-bold">🛠 {l.toolName}</div>
+                <div className="text-(--ink-soft) uppercase text-[10px] tracking-widest font-bold">[{l.toolName}]</div>
                 <div className="mt-1 text-(--ink) bg-(--paper) p-1 border border-(--paper-edge) whitespace-pre-wrap overflow-hidden">
                   <span className="text-(--ink-soft)">Args:</span> {l.toolArgs}
                 </div>

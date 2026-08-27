@@ -55,7 +55,8 @@ export async function issueRailForMandate(paymentMandateId: string, _sessionId?:
   // (app/checkout/[rowId]) — the authentic merchant integration. Contact is
   // prefilled, so the hosted flow is: pick UPI → enter VPA → pay.
   // (Payment Links remain in lib/razorpay/client.ts as a no-code fallback.)
-  const appUrl = origin ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const vercelDomain = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL || process.env.NEXT_PUBLIC_VERCEL_URL;
+  const appUrl = origin ?? (vercelDomain ? `https://${vercelDomain}` : process.env.NEXT_PUBLIC_APP_URL) ?? "http://localhost:3000";
   const checkoutUrl = `${appUrl}/checkout/${paymentRowId}`;
 
   await db().execute({

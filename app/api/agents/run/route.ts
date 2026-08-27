@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
 
   const adapter =
     provider === "gemini"
-      ? geminiAdapter(body.model ?? "gemini-2.5-flash")
+      ? geminiAdapter(body.model ?? "gemini-1.5-flash")
       : groqAdapter(body.model ?? "openai/gpt-oss-120b");
 
   try {

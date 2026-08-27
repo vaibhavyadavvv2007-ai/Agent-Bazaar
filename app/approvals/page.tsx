@@ -61,14 +61,17 @@ export default function Approvals() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
-      <header className="mb-8 flex items-center justify-between border-b-2 border-(--bazaar-ink) pb-4">
-        <h1 className="font-masthead text-2xl font-bold tracking-tight uppercase">Shopkeeper&apos;s queue</h1>
+    <main className="mx-auto max-w-3xl px-6 py-10 min-h-screen">
+      <header className="mb-8 flex items-center justify-between border-b-2 border-double border-(--bazaar-ink) pb-4">
+        <h1 className="font-masthead text-2xl font-bold tracking-tight uppercase">Shopkeeper&apos;s Queue</h1>
         <a href="/" className="font-clause text-sm underline decoration-(--bazaar-line) underline-offset-4 hover:text-(--bazaar-marigold)">← return to floor</a>
       </header>
 
       {note && (
-        <p className="mb-4 border-[1.5px] border-(--bazaar-ink) bg-(--bazaar-panel) px-3 py-2 font-clause text-sm font-bold text-(--bazaar-ink)">[ NOTICE ] {note}</p>
+        <div className="mb-4 typeset-in">
+          <p className="seal seal-green">notice</p>
+          <p className="mt-1.5 font-clause text-sm text-(--bazaar-ink)">{note}</p>
+        </div>
       )}
 
       {queue.length === 0 ? (
@@ -77,6 +80,8 @@ export default function Approvals() {
           <div className="mt-3 text-xs">A gated transaction parks here with its named rule hits.</div>
         </div>
       ) : (
+        <>
+        <div className="security-thread-band" aria-hidden="true" />
         <ul className="space-y-3">
           {queue.map((q) => (
             <li key={q.id} className="border-[1.5px] border-(--bazaar-ink) bg-(--bazaar-panel) p-4">
@@ -108,7 +113,16 @@ export default function Approvals() {
             </li>
           ))}
         </ul>
+        <div className="security-thread-band mt-3" aria-hidden="true" />
+        </>
       )}
+
+      <footer className="mt-8 pt-3 text-center font-clause text-[11px] text-(--bazaar-ink-dim)">
+        <p className="fig">
+          <span className="pointer" aria-hidden="true" />
+          Approval latency is measured from bell-ring to this page click.
+        </p>
+      </footer>
     </main>
   );
 }

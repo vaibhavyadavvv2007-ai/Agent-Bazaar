@@ -6,7 +6,7 @@ import type { AdapterCall, AssistantBlock } from "./harness";
  * the TOOLS (mandates + policy + ledger), not in any one model. Same six
  * store verbs, same bounds; a second provider spending through them.
  */
-export function geminiAdapter(model: string = "gemini-2.5-flash"): AdapterCall {
+export function geminiAdapter(model: string = "gemini-1.5-flash"): AdapterCall {
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
   return async ({ system, tools, messages }) => {
@@ -17,11 +17,12 @@ export function geminiAdapter(model: string = "gemini-2.5-flash"): AdapterCall {
       // Structured history: assistant tool calls + user tool results.
       const parts = (m.content as Array<Record<string, unknown>>).map((block) => {
         if (block.kind === "tool_use") {
-          return { functionCall: { name: block.name as string, args: block.input as Record<string, unknown> } };
+          return { functionCall: { id: block.id as string, name: block.name as string, args: block.input as Record<string, unknown> } };
         }
         if (block.kind === "tool_result") {
           return {
             functionResponse: {
+              id: block.tool_use_id as string,
               name: (block.tool_name as string) ?? "tool",
               response: { result: block.content as string },
             },

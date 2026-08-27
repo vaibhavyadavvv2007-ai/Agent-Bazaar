@@ -57,13 +57,14 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-10">
-      <header className="mb-2 flex flex-wrap items-center justify-between gap-3 border-b-2 border-(--bazaar-ink) pb-4">
+    <main className="mx-auto max-w-5xl px-6 py-10 min-h-screen">
+      <header className="mb-2 flex flex-wrap items-center justify-between gap-3 border-b-2 border-double border-(--bazaar-ink) pb-4">
         <h1 className="font-masthead text-2xl font-bold tracking-tight uppercase">Merchant Dashboard</h1>
         <a href="/" className="font-clause text-sm underline decoration-(--bazaar-line) underline-offset-4 hover:text-(--bazaar-marigold)">← return to floor</a>
       </header>
-      <p className="mb-8 mt-4 inline-block border-[1.5px] border-(--bazaar-ink) bg-(--bazaar-panel) px-3 py-1.5 font-clause text-xs font-bold uppercase tracking-wider text-(--bazaar-ink)">
-        [ synthetic traffic ] measured honestly from the ledger
+      <div className="security-thread-band mt-3" aria-hidden="true" />
+      <p className="mb-8 mt-4 inline-block seal seal-red">
+        synthetic traffic · measured honestly from the ledger
       </p>
 
       {!m ? (
@@ -88,6 +89,13 @@ export default function Dashboard() {
             <span className="font-bold text-(--bazaar-ink)">Reading this page:</span> every transaction above walked a signed mandate chain and the policy gate before touching real test-mode rails. Failures are shown because they were engineered to happen, then recovered. Full trail:{" "}
             <a href="/api/metrics" className="underline hover:text-(--bazaar-marigold)">/api/metrics</a>.
           </section>
+
+          <footer className="mt-6 pt-3 text-center font-clause text-[11px] text-(--bazaar-ink-dim)">
+            <p className="fig">
+              <span className="pointer" aria-hidden="true" />
+              Fig. 8: every metric above is computed from the append-only ledger, not hand-set.
+            </p>
+          </footer>
         </>
       )}
     </main>

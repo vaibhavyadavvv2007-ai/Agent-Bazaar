@@ -344,15 +344,29 @@ export function BillBook() {
   const merged = useMemo(() => {
     const seen = new Set<string>();
     const all: LiveEvent[] = [];
-    for (const e of [...seeded, ...last]) {
+    
+    // `last` is newest-first. Process it first so the freshest events take precedence.
+    for (const e of last) {
       const id = e.id ?? `${e.type}:${e.ts}`;
       if (seen.has(id)) continue;
       seen.add(id);
       all.push(e);
     }
-    return all; // oldest first
+    
+    // `seeded` is oldest-first (from API). Reverse it to continue the newest-first timeline.
+    for (let i = seeded.length - 1; i >= 0; i--) {
+      const e = seeded[i];
+      const id = e.id ?? `${e.type}:${e.ts}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      all.push(e);
+    }
+    
+    return all; // strictly newest-first
   }, [seeded, last]);
-  const receipts = useMemo(() => reduceReceipts([...merged].reverse()), [merged]);
+  
+  // Since `merged` is already newest-first, we just pass it to reduceReceipts directly.
+  const receipts = useMemo(() => reduceReceipts(merged), [merged]);
 
   return (
     <aside className="rule-box h-fit p-3">

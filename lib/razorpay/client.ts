@@ -19,10 +19,10 @@ let _rzp: Razorpay | null = null;
 
 export function rzp(): Razorpay {
   if (!_rzp) {
-    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
     if (!keyId || !keySecret) {
-      throw new Error("RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET missing — copy .env.example to .env.local");
+      throw new Error("RAZORPAY_KEY_ID (or NEXT_PUBLIC_RAZORPAY_KEY_ID) / RAZORPAY_KEY_SECRET missing");
     }
     if (!keyId.startsWith("rzp_test_")) {
       // Hard stop, deliberately loud: this project must never touch live keys.
