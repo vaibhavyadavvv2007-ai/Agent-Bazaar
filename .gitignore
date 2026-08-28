@@ -32,3 +32,10 @@ next-env.d.ts
 /PROJECT-EXPLAINED.md
 
 .vercel
+
+# AI tooling configs — not part of the project
+/.agents/
+/.claude/
+/.codex/
+/.impeccable/
+/skills-lock.json
