@@ -4,7 +4,7 @@
 
 ## The one-paragraph version
 
-Any AI agent — Claude or Gemini via a tool-use harness, or *any* MCP client via our own MCP endpoint — shops at an Indian street-bazaar catalog. Every purchase drives down the same road: a hash-linked, Ed25519-signed mandate chain (**INTENT → CART → PAYMENT**), through a pure-function policy engine with hard bounds, past a human-in-the-loop approval gate when a bound trips, onto real Razorpay **test-mode** rails (order → payment link → hosted settlement → signed webhook). Every step lands in an append-only event ledger you can export as JSONL. The bazaar floor renders this live: agents walk between stalls, mandate cards land as they're signed, the shopkeeper's bell rings when a human must decide.
+Any AI agent — Claude (or Groq) via a tool-use harness, or *any* MCP client via our own MCP endpoint — shops at an Indian street-bazaar catalog. Every purchase drives down the same road: a hash-linked, Ed25519-signed mandate chain (**INTENT → CART → PAYMENT**), through a pure-function policy engine with hard bounds, past a human-in-the-loop approval gate when a bound trips, onto real Razorpay **test-mode** rails (order → payment link → hosted settlement → signed webhook). Every step lands in an append-only event ledger you can export as JSONL. The bazaar floor renders this live: agents walk between stalls, mandate cards land as they're signed, the shopkeeper's bell rings when a human must decide.
 
 ## Traceability: Track-01 bar → implementation
 
@@ -15,7 +15,7 @@ Any AI agent — Claude or Gemini via a tool-use harness, or *any* MCP client vi
 | Actions are **gated** | Human-in-the-loop queue: gate verdicts park in `approvals`, ring the bell on `/approvals` + bazaar floor; `POST /api/approvals` opens or closes the gate |
 | **Audit trail** | Append-only `events` table (`schema.sql` triggers forbid UPDATE/DELETE); exportable JSONL; per-purchase chain verification |
 | **One failure handled gracefully** | Real failed payment (`failure@razorpay`) → structured `failed` status + reason → agent retries on the SAME signed cart → capture marks the original `recovered`. Also: stock-outs, intent-bound violations, expired mandates — all structured refusals, never crashes |
-| Merchant transactable by AI buyers **end-to-end** | One implementation behind every front door: REST (`app/api/**`), MCP server (`app/api/mcp/route.ts`), Groq harness (`lib/agents/groq.ts`), Gemini adapter (`lib/agents/gemini.ts`) |
+| Merchant transactable by AI buyers **end-to-end** | One implementation behind every front door: REST (`app/api/**`), MCP server (`app/api/mcp/route.ts`), Claude harness (`lib/agents/claude.ts`), Groq harness (`lib/agents/groq.ts`) |
 | Growth evidence | Agent-facing suggestions measured end-to-end: presented → accepted → attach rate on `/api/metrics` |
 | Test-mode APIs | `lib/razorpay/client.ts` refuses to boot without `rzp_test_` keys |
 
@@ -45,7 +45,7 @@ lib/
   razorpay/{client,rail}.ts order+link issuance, idempotent settlement
   events/bus.ts             persist-once, fan-out-everywhere
   tools/store.ts            StoreTools — ONE shopping surface for all agents
-  agents/{harness,groq,gemini}.ts
+  agents/{harness,claude,groq}.ts
 scripts/
   migrate.ts seed.ts        setup
   settle-core.ts settle.ts  Playwright settlement driver (test instruments)

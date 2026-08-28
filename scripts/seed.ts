@@ -89,4 +89,62 @@ for (const e of demoEvents) {
   });
 }
 
-console.log(`seeded ${CATALOG.length} products + ${rules.length} policy rules + ${demoEvents.length} historical events`);
+// Campaigns — merchant-configurable promotions
+const now = new Date();
+const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+const monthFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000).toISOString();
+const twoMinutesFromNow = new Date(now.getTime() + 2 * 60 * 1000).toISOString();
+
+const campaigns = [
+  {
+    id: "camp-mithai-bundle",
+    name: "Mithai Bundle Bonanza",
+    description: "Buy 2 or more mithai items and get 15% off the total mithai value",
+    kind: "bundle",
+    config: { categories: ["mithai"], min_items: 2, discount_percent: 15 },
+    starts_at: weekAgo,
+    ends_at: monthFromNow,
+  },
+  {
+    id: "camp-chai-flash",
+    name: "Chai Flash Sale",
+    description: "Masala Chai Kit at ₹299 — limited time Diwali offer (down from ₹349)",
+    kind: "flash_sale",
+    config: { skus: ["CHAI-MSL-001"], sale_price_paise: 29900 },
+    starts_at: weekAgo,
+    ends_at: weekFromNow,
+  },
+  {
+    id: "camp-cross-sell",
+    name: "Festival Cross-Sell",
+    description: "Buy from 2+ different categories and get 10% off your cheapest item",
+    kind: "cross_sell",
+    config: { min_categories: 2, discount_percent: 10, exclude_categories: ["cricket"] },
+    starts_at: weekAgo,
+    ends_at: monthFromNow,
+  },
+  {
+    id: "camp-flash-diya",
+    name: "Diya Flash Deal",
+    description: "Diwali Diya Set at ₹149 — 25% off for the next 5 minutes only!",
+    kind: "flash_sale",
+    config: { skus: ["DECO-DIYA-009"], sale_price_paise: 14900 },
+    starts_at: weekAgo,
+    ends_at: fiveMinutesFromNow,
+  },
+];
+
+for (const c of campaigns) {
+  await db().execute({
+    sql: `INSERT INTO campaigns (id, name, description, kind, config_json, starts_at, ends_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET name=excluded.name, description=excluded.description,
+            config_json=excluded.config_json, starts_at=excluded.starts_at, ends_at=excluded.ends_at, enabled=1`,
+    args: [c.id, c.name, c.description, c.kind, JSON.stringify(c.config), c.starts_at, c.ends_at],
+  });
+}
+
+console.log(`seeded ${CATALOG.length} products + ${rules.length} policy rules + ${campaigns.length} campaigns + ${demoEvents.length} historical events`);

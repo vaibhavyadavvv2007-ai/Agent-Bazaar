@@ -16,7 +16,7 @@ export async function GET() {
     return r.rows[0] ?? {};
   };
 
-  const [sessions, paymentsAgg, verdicts, approvalsRows, failures, suggestions, topItems] = await Promise.all([
+  const [sessions, paymentsAgg, verdicts, approvalsRows, failures, suggestions, topItems, campaignApps] = await Promise.all([
     db().execute(`SELECT provider, COUNT(*) AS n FROM sessions GROUP BY provider`),
     db().execute(`
       SELECT status, COUNT(*) AS n, COALESCE(SUM(amount_paise),0) AS paise
@@ -32,6 +32,9 @@ export async function GET() {
       SELECT COUNT(*) AS presented,
              SUM(CASE WHEN accepted = 1 THEN 1 ELSE 0 END) AS accepted
       FROM suggestions`),
+    db().execute(`
+      SELECT COUNT(*) AS total, COALESCE(SUM(discount_paise), 0) AS total_discount
+      FROM campaign_applications`),
     db().execute(`
       SELECT json_extract(j.value, '$.sku') AS sku,
              CAST(json_extract(j.value, '$.qty') AS INTEGER) AS qty,
@@ -70,6 +73,9 @@ export async function GET() {
   const verdictCount = (v: string) => Number(verdicts.rows.find((r) => String(r.verdict) === v)?.n ?? 0);
   const decisionsTotal = verdicts.rows.reduce((s, r) => s + Number(r.n ?? 0), 0);
 
+  const campaignTotal = Number(campaignApps.rows[0]?.total ?? 0);
+  const campaignDiscount = Number(campaignApps.rows[0]?.total_discount ?? 0);
+
   return NextResponse.json({
     label: "SYNTHETIC TRAFFIC — driven by scripts/demo.ts; no real money",
     sessions_by_provider: Object.fromEntries(sessions.rows.map((r) => [String(r.provider), Number(r.n)])),
@@ -99,6 +105,11 @@ export async function GET() {
       suggestions_accepted: acceptedSuggestions,
       attach_rate: presented ? acceptedSuggestions / presented : null,
       items_sold_estimate: Object.fromEntries([...itemQty.entries()]),
+    },
+    campaigns: {
+      total_applied: campaignTotal,
+      total_discount_paise: campaignDiscount,
+      total_discount_inr: campaignDiscount / 100,
     },
     failures_by_reason: Object.fromEntries(failures.rows.map((r) => [String(r.reason), Number(r.n)])),
   });

@@ -18,19 +18,20 @@ type Metrics = {
   policy: { allow: number; gate: number; deny: number; total_decisions: number; gate_rate: number | null };
   human_in_loop: { approvals_granted: number; approval_latency_seconds: { p50: number | null; p95: number | null } };
   growth: { suggestions_presented: number; suggestions_accepted: number; attach_rate: number | null };
+  campaigns: { total_applied: number; total_discount_paise: number; total_discount_inr: number };
 };
 
 function Tile(props: { label: string; value: string; sub?: string; tone?: "good" | "warn" | "bad" }) {
-  const toneIcon = props.tone === "good" ? "✅" : props.tone === "warn" ? "🔔" : props.tone === "bad" ? "⚠️" : "•";
+  const toneLabel = props.tone === "good" ? "OK" : props.tone === "warn" ? "HOLD" : props.tone === "bad" ? "ERR" : null;
   return (
     <div className="border-[1.5px] border-(--bazaar-ink) bg-(--bazaar-panel) p-4">
-      <div className="text-xs uppercase tracking-wider text-(--bazaar-ink-dim)">
+      <div className="font-clause text-[11px] uppercase tracking-[0.14em] text-(--bazaar-ink-dim)">
         {props.label}
       </div>
-      <div className="mt-1 text-3xl font-semibold tabular-nums">{props.value}</div>
+      <div className="mt-1 font-masthead text-3xl font-semibold tabular-nums">{props.value}</div>
       {props.sub && (
         <div className="mt-1 font-clause text-xs text-(--bazaar-ink-dim)">
-          {props.tone && <span className={`mr-1 seal ${props.tone === "good" ? "seal-green" : props.tone === "warn" ? "seal-gold" : "seal-red"}`}>{toneIcon}</span>}
+          {toneLabel && <span className={`mr-1 seal ${props.tone === "good" ? "seal-green" : props.tone === "warn" ? "seal-gold" : "seal-red"}`}>{toneLabel}</span>}
           {props.sub}
         </div>
       )}
@@ -79,10 +80,14 @@ export default function Dashboard() {
           </section>
 
           <section className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Tile label="Approval latency p50" value={m.human_in_loop.approval_latency_seconds.p50 !== null ? `${m.human_in_loop.approval_latency_seconds.p50}s` : "—"} sub={`p95 ${m.human_in_loop.approval_latency_seconds.p95 ?? "—"}s · ${m.human_in_loop.approvals_granted} approvals`} />
-            <Tile label="Policy verdicts" value={`${m.policy.allow}/${m.policy.gate}/${m.policy.deny}`} sub="allow / gate / deny" />
-            <Tile label="Failed payments" value={String(m.money.failed_count)} sub={`${m.money.attempts_total} total attempts`} tone="bad" />
+            <Tile label="Campaigns applied" value={String(m.campaigns.total_applied)} sub={`${m.campaigns.total_discount_inr > 0 ? `₹${m.campaigns.total_discount_inr.toLocaleString("en-IN")} discount given` : "no discounts yet"}`} tone="good" />
             <Tile label="Sessions" value={String(Object.values(m.sessions_by_provider).reduce((a, b) => a + b, 0))} sub={Object.entries(m.sessions_by_provider).map(([k, v]) => `${k}:${v}`).join(" · ") || "none yet"} />
+            <Tile label="Failed payments" value={String(m.money.failed_count)} sub={`${m.money.attempts_total} total attempts`} tone="bad" />
+            <Tile label="Policy verdicts" value={`${m.policy.allow}/${m.policy.gate}/${m.policy.deny}`} sub="allow / gate / deny" />
+          </section>
+
+          <section className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Tile label="Approval latency p50" value={m.human_in_loop.approval_latency_seconds.p50 !== null ? `${m.human_in_loop.approval_latency_seconds.p50}s` : "—"} sub={`p95 ${m.human_in_loop.approval_latency_seconds.p95 ?? "—"}s · ${m.human_in_loop.approvals_granted} approvals`} />
           </section>
 
           <section className="mt-6 border-[1.5px] border-(--bazaar-ink) bg-(--bazaar-panel) p-4 font-clause text-xs text-(--bazaar-ink-dim)">

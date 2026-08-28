@@ -46,7 +46,13 @@ export async function settleLink(
 
     // Terminal truth = our page reflecting the ledger.
     const timeoutMs = opts.timeoutMs ?? 180_000;
-    const result = await Promise.race([
+    
+    // Extract payment_row_id from the URL for API polling
+    const rowIdMatch = checkoutUrl.match(/\/checkout\/([\w-]+)/);
+    const paymentRowId = rowIdMatch?.[1];
+    
+    // Race: page text detection vs API polling fallback
+    const pageResult = Promise.race([
       page
         .getByText(/payment captured/i)
         .first()
@@ -58,6 +64,23 @@ export async function settleLink(
         .waitFor({ state: "visible", timeout: timeoutMs })
         .then(() => ({ ok: false, detail: "ledger confirms failed" })),
     ]);
+    
+    const apiResult = paymentRowId ? (async () => {
+      const baseUrl = new URL(checkoutUrl).origin;
+      const deadline = Date.now() + timeoutMs;
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 3000));
+        try {
+          const res = await fetch(`${baseUrl}/api/status?payment_row_id=${paymentRowId}`);
+          const data = await res.json() as { status: string };
+          if (data.status === "captured") return { ok: true, detail: "API confirms captured" };
+          if (data.status === "failed") return { ok: false, detail: "API confirms failed" };
+        } catch {}
+      }
+      return { ok: false, detail: "API polling timed out" };
+    })() : Promise.race([]);
+    
+    const result = await Promise.race([pageResult, apiResult]);
     return result;
   } catch (e) {
     return fail(page, `driver error: ${String(e).slice(0, 200)}`);

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { toast } from "sonner";
 import { useBazaarStream, hueFor, type LiveEvent } from "./EventFeedContext";
+import ConversationalCheckout from "./ConversationalCheckout";
 
 // Simple procedural sound effects (no assets needed)
 function playSound(type: "bell" | "stamp" | "arrive" | "kaching") {
@@ -82,12 +83,12 @@ type Product = {
   stall_y: number;
 };
 
-const CATEGORY_EMOJI: Record<string, string> = {
-  chai: "🫖",
-  mithai: "🍬",
-  snacks: "🥟",
-  decor: "🪔",
-  cricket: "🏏",
+const CATEGORY_LABEL: Record<string, string> = {
+  chai: "CHAI",
+  mithai: "MITHAI",
+  snacks: "SNACKS",
+  decor: "DECOR",
+  cricket: "CRICKET"
 };
 
 const rupees = (paise: number) => `₹${(paise / 100).toLocaleString("en-IN")}`;
@@ -133,11 +134,22 @@ type Receipt = {
 
 type Bell = { approvalId: string; amount: number; reason: string; rangAt: number };
 
+type CheckoutDetails = {
+  payment_row_id: string;
+  rzp_order_id: string;
+  amount_paise: number;
+  cart_items: { sku: string; title: string; qty: number; unit_price_paise: number; line_total_paise: number }[];
+  agent_message: string;
+  session_id: string;
+  mandate_id: string;
+};
+
 export function Street() {
   const { connected, last } = useBazaarStream();
   const [products, setProducts] = useState<Product[]>([]);
   const [bell, setBell] = useState<Bell | null>(null);
   const [bellNote, setBellNote] = useState<string | null>(null);
+  const [checkoutDetails, setCheckoutDetails] = useState<CheckoutDetails | null>(null);
 
   useEffect(() => {
     fetch("/api/catalog")
@@ -170,19 +182,18 @@ export function Street() {
       if (e.type === "policy.gate") {
         playSound("bell");
         toast("Summons", { description: "An agent's transaction was paused for your review." });
-      } else if (e.type === "payment.checkout_open") {
+      } else      if (e.type === "payment.checkout_conversational") {
         playSound("bell");
-        const checkoutUrl = e.payload?.checkout_url as string | undefined;
-        if (checkoutUrl) {
-          toast.info("Agent requires payment — click to open checkout", {
-            description: "A checkout page is ready. Complete payment with test UPI: success@razorpay",
-            action: {
-              label: "Pay Now",
-              onClick: () => window.open(checkoutUrl, "_blank", "width=500,height=700"),
-            },
-            duration: Infinity,
-          });
-        }
+        const details: CheckoutDetails = {
+          payment_row_id: String(e.payload?.payment_row_id ?? ""),
+          rzp_order_id: String(e.payload?.rzp_order_id ?? ""),
+          amount_paise: Number(e.payload?.amount_paise ?? 0),
+          cart_items: (e.payload?.cart_items as any[]) ?? [],
+          agent_message: String(e.payload?.agent_message ?? ""),
+          session_id: String(e.session_id ?? ""),
+          mandate_id: String(e.payload?.mandate_id ?? ""),
+        };
+        setCheckoutDetails(details);
       } else if (e.type === "payment.captured") {
         playSound("kaching");
         toast.success(`Payment Captured`, { description: `₹${((Number(e.payload?.amount_paise) || 0) / 100).toLocaleString("en-IN")} settled.` });
@@ -252,7 +263,7 @@ export function Street() {
                   fill="none"
                 />
                 <path d="M0 22 h132" stroke="var(--seal)" strokeWidth="2" opacity="0.85" />
-                <text x="10" y="40" fontSize="15">{CATEGORY_EMOJI[p.category] ?? "🏪"}</text>
+                <text x="10" y="40" fontSize="9" fill="var(--ink-soft)" fontWeight="700" className="font-clause" letterSpacing="0.08em">{CATEGORY_LABEL[p.category] ?? "STALL"}</text>
                 <text x="32" y="40" fontSize="11.5" fill="var(--ink)" fontWeight="600" className="font-masthead" style={{ fontSize: 11 }}>
                   {p.title.length > 15 ? `${p.title.slice(0, 14)}…` : p.title}
                 </text>
@@ -325,6 +336,14 @@ export function Street() {
           </div>
         )}
         {bellNote && <div className="absolute bottom-3 left-4 border border-(--ink) bg-(--paper) px-3 py-1.5 font-clause text-xs">{bellNote}</div>}
+
+        {/* Conversational checkout modal */}
+        {checkoutDetails && (
+          <ConversationalCheckout
+            details={checkoutDetails}
+            onClose={() => setCheckoutDetails(null)}
+          />
+        )}
       </section>
   );
 }
@@ -423,7 +442,7 @@ function reduceAgents(events: LiveEvent[]): Agent[] {
         hue: hueFor(e.session_id),
         x: 120 + map.size * 90,
         y: LANE_Y,
-        bubble: "arrived 🙏",
+        bubble: "arrived",
         lastTs: Date.now(),
       });
       continue;
@@ -438,17 +457,17 @@ function reduceAgents(events: LiveEvent[]): Agent[] {
     let isLeft = existing.isLeft;
 
     if (e.type === "agent.searched_catalog") bubble = `browsing ${args.query ? `"${args.query}"` : "the stalls"}…`;
-    else if (e.type === "agent.tool.create_intent_mandate") bubble = "permission signed 🧾";
-    else if (e.type === "agent.tool.propose_cart" || e.type === "mandate.signed.cart") bubble = "cart committed 🛒";
+    else if (e.type === "agent.tool.create_intent_mandate") bubble = "intent signed";
+    else if (e.type === "agent.tool.propose_cart" || e.type === "mandate.signed.cart") bubble = "cart committed";
     else if (e.type === "agent.tool.request_checkout") bubble = "asking the gate…";
-    else if (e.type === "policy.allow") bubble = "allowed ✅";
-    else if (e.type === "policy.gate") bubble = "rang the bell 🔔";
-    else if (e.type === "policy.deny") bubble = "denied ⛔";
-    else if (e.type === "payment.captured") bubble = "paid! 💰";
-    else if (e.type === "payment.failed") bubble = "payment failed ⚠️";
-    else if (e.type === "payment.recovered") bubble = "recovered 🛟";
+    else if (e.type === "policy.allow") bubble = "allowed";
+    else if (e.type === "policy.gate") bubble = "rang the bell";
+    else if (e.type === "policy.deny") bubble = "denied";
+    else if (e.type === "payment.captured") bubble = "paid";
+    else if (e.type === "payment.failed") bubble = "payment failed";
+    else if (e.type === "payment.recovered") bubble = "recovered";
     else if (e.type === "agent.left") {
-      bubble = "left 👋";
+      bubble = "departed";
       isLeft = true;
     }
 
@@ -511,6 +530,12 @@ function eventToReceipt(e: LiveEvent): Receipt | null {
       return { key: e.id!, lines: [`RECOVERY`, `earlier failure marked recovered`], stamp: { text: "recovered", tone: "good" }, tone: "", ago };
     case "suggestion.accepted":
       return { key: e.id!, lines: [`upsell accepted`, `attach rate ↑`], tone: "", ago };
+    case "campaign.applied":
+      return { key: e.id!, lines: [`campaign: ${e.payload?.campaign_name ?? "discount"}`, `${e.payload?.detail ?? ""}`], stamp: { text: "discount applied", tone: "good" }, tone: "", ago };
+    case "campaign.flash_expiring":
+      return { key: e.id!, lines: [`FLASH SALE EXPIRING`, `${e.payload?.campaign_name ?? ""} — ${e.payload?.seconds_left ?? 0}s remaining`], stamp: { text: "hurry!", tone: "warn" }, tone: "", ago };
+    case "campaign.flash_expired":
+      return { key: e.id!, lines: [`FLASH SALE ENDED`, `${e.payload?.campaign_name ?? ""} has expired`], stamp: { text: "expired", tone: "bad" }, tone: "", ago };
     default:
       return null;
   }

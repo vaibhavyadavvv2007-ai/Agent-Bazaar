@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runAgentSession } from "@/lib/agents/harness";
 import { groqAdapter } from "@/lib/agents/groq";
-import { geminiAdapter } from "@/lib/agents/gemini";
+import { claudeAdapter } from "@/lib/agents/claude";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -9,7 +9,7 @@ export const maxDuration = 120;
 
 /**
  * POST /api/agents/run
- * { provider: "groq" | "gemini", agent_id, persona, task, user_max_inr,
+ * { provider: "groq" | "claude", agent_id, persona, task, user_max_inr,
  *   categories?, model? }
  *
  * Runs ONE full bounded agent shopping session in-process. Long sessions are
@@ -17,7 +17,7 @@ export const maxDuration = 120;
  * Groq defaults to openai/gpt-oss-120b.
  */
 const inputSchema = z.object({
-  provider: z.enum(["groq", "gemini"]).optional(),
+  provider: z.enum(["groq", "claude"]).optional(),
   agent_id: z.string(),
   persona: z.string().optional(),
   task: z.string(),
@@ -59,8 +59,8 @@ export async function POST(req: NextRequest) {
   const provider = body.provider ?? "groq";
 
   const adapter =
-    provider === "gemini"
-      ? geminiAdapter(body.model ?? "gemini-1.5-flash")
+    provider === "claude"
+      ? claudeAdapter(body.model ?? "claude-3-5-sonnet-latest")
       : groqAdapter(body.model ?? "openai/gpt-oss-120b");
 
   try {

@@ -8,11 +8,12 @@ import {
   type CheckoutResult,
 } from "@/lib/server";
 import { reconcileByReference } from "@/lib/razorpay/rail";
+import { evaluateCampaigns, campaignFromRow, type Campaign, type CartItem } from "@/lib/campaigns/engine";
 
 /**
  * StoreTools — ONE implementation of "shop at the bazaar", consumed by every
  * front door: REST routes, the MCP server, and each provider harness. A
- * guarantee added here applies to Groq, Gemini and any MCP client alike;
+ * guarantee added here applies to Claude, Groq and any MCP client alike;
  * there is exactly one place where spending semantics live.
  *
  * Tools are bound to a session at construction time, so agent-facing schemas
@@ -26,7 +27,9 @@ export type StoreToolName =
   | "propose_cart"
   | "request_checkout"
   | "get_payment_status"
-  | "accept_suggestion";
+  | "accept_suggestion"
+  | "list_campaigns"
+  | "apply_campaign";
 
 export type ProductView = {
   sku: string;
@@ -154,6 +157,9 @@ export function storeTools(session: SessionContext) {
      * Step 3: checkout. Creates + signs the PAYMENT mandate (merchant), runs
      * the policy gate, and on allow issues real test-mode rails. This single
      * call is deliberately the ONLY way money ever moves.
+     *
+     * When checkout is issued, emits a payment.checkout_conversational event
+     * so the bazaar floor shows the in-app conversational checkout modal.
      */
     async request_checkout(input: { cart_mandate_id: string }): Promise<CheckoutResult & { guidance?: string }> {
       // get_payment_status-driven flows need the payment row id, so keep the
@@ -161,9 +167,69 @@ export function storeTools(session: SessionContext) {
       const paymentMandate = await createPaymentMandate(session.sessionId, input.cart_mandate_id);
       const result = await requestCheckout(paymentMandate.id);
 
+      // On successful checkout, auto-apply campaigns and emit conversational event
+      if (result.status === "issued" && result.payment_row_id) {
+        const cartItems = await resolveCartItems(input.cart_mandate_id);
+        let totalPaise = cartItems.reduce((s, i) => s + i.line_total_paise, 0);
+
+        // Auto-apply active campaigns
+        const now = new Date().toISOString();
+        const campRes = await db().execute({
+          sql: `SELECT * FROM campaigns WHERE enabled = 1 AND starts_at <= ? AND ends_at >= ?`,
+          args: [now, now],
+        });
+        if (campRes.rows.length > 0) {
+          const allCampaigns = campRes.rows.map((r) => campaignFromRow(r as any));
+          const campResult = evaluateCampaigns(allCampaigns, cartItems, now);
+          if (campResult.total_discount_paise > 0) {
+            // Record each applied campaign
+            for (const applied of campResult.applicable) {
+              const appId = `camp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+              await db().execute({
+                sql: `INSERT INTO campaign_applications (id, campaign_id, session_id, cart_mandate_id, discount_paise, final_paise)
+                      VALUES (?, ?, ?, ?, ?, ?)`,
+                args: [appId, applied.campaign_id, session.sessionId, input.cart_mandate_id, applied.discount_paise, campResult.final_total_paise],
+              });
+              await publish({
+                type: "campaign.applied",
+                session_id: session.sessionId,
+                payload: {
+                  campaign_id: applied.campaign_id,
+                  campaign_name: applied.campaign_name,
+                  kind: applied.kind,
+                  discount_paise: applied.discount_paise,
+                  detail: applied.detail,
+                },
+              });
+            }
+            totalPaise = campResult.final_total_paise;
+          }
+        }
+
+        // Get the Razorpay order ID
+        const payRes = await db().execute({
+          sql: "SELECT rzp_order_id FROM payments WHERE id = ?",
+          args: [result.payment_row_id],
+        });
+        const rzpOrderId = String(payRes.rows[0]?.rzp_order_id ?? "");
+
+        await publish({
+          type: "payment.checkout_conversational",
+          session_id: session.sessionId,
+          payload: {
+            payment_row_id: result.payment_row_id,
+            rzp_order_id: rzpOrderId,
+            amount_paise: totalPaise,
+            cart_items: cartItems,
+            agent_message: generateAgentMsg(cartItems, totalPaise),
+            mandate_id: paymentMandate.id,
+          },
+        });
+      }
+
       const guidance =
         result.status === "issued"
-          ? "Rails issued. The human MUST complete payment in the UI. Stop and report this immediately. Do NOT poll get_payment_status."
+          ? "Rails issued. The shopkeeper will see your order in the conversational checkout. The human MUST confirm and complete payment. Stop and report this immediately. Do NOT poll get_payment_status."
           : result.status === "needs_approval"
             ? "A policy rule tripped. The shopkeeper must approve. Stop and report this immediately. Do NOT poll."
             : result.status === "denied"
@@ -238,7 +304,124 @@ export function storeTools(session: SessionContext) {
       });
       return { accepted: true };
     },
+
+    /** List active campaigns the agent can apply to a cart. */
+    async list_campaigns() {
+      const now = new Date().toISOString();
+      const res = await db().execute({
+        sql: `SELECT * FROM campaigns WHERE enabled = 1 AND starts_at <= ? AND ends_at >= ? ORDER BY kind`,
+        args: [now, now],
+      });
+      const campaigns = res.rows.map((r) => campaignFromRow(r as any));
+      return {
+        campaigns: campaigns.map((c) => ({
+          id: c.id,
+          name: c.name,
+          description: c.description,
+          kind: c.kind,
+          config: c.config,
+        })),
+        count: campaigns.length,
+      };
+    },
+
+    /** Apply a campaign discount to a cart and record the application. */
+    async apply_campaign(input: { campaign_id: string; cart_mandate_id: string }) {
+      // 1. Fetch the campaign
+      const cRes = await db().execute({
+        sql: "SELECT * FROM campaigns WHERE id = ? AND enabled = 1",
+        args: [input.campaign_id],
+      });
+      if (!cRes.rows[0]) return { error: "unknown or disabled campaign" };
+      const campaign = campaignFromRow(cRes.rows[0] as any);
+
+      // 2. Check time window
+      const now = new Date().toISOString();
+      if (now < campaign.starts_at || now > campaign.ends_at) {
+        return { error: "campaign is not active at this time" };
+      }
+
+      // 3. Get cart items from the mandate
+      const cartItems = await resolveCartItems(input.cart_mandate_id);
+      if (cartItems.length === 0) return { error: "empty or unknown cart" };
+
+      // 4. Evaluate the campaign against the cart
+      const evalResult = evaluateCampaigns([campaign], cartItems, now);
+      if (evalResult.applicable.length === 0) {
+        return { error: "cart does not qualify for this campaign", detail: campaign.description };
+      }
+
+      const discount = evalResult.applicable[0];
+
+      // 5. Record the application
+      const appId = `camp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      await db().execute({
+        sql: `INSERT INTO campaign_applications (id, campaign_id, session_id, cart_mandate_id, discount_paise, final_paise)
+              VALUES (?, ?, ?, ?, ?, ?)`,
+        args: [appId, campaign.id, session.sessionId, input.cart_mandate_id, discount.discount_paise, evalResult.final_total_paise],
+      });
+
+      await publish({
+        type: "campaign.applied",
+        session_id: session.sessionId,
+        payload: {
+          campaign_id: campaign.id,
+          campaign_name: campaign.name,
+          kind: campaign.kind,
+          discount_paise: discount.discount_paise,
+          final_paise: evalResult.final_total_paise,
+          detail: discount.detail,
+        },
+      });
+
+      return {
+        applied: true,
+        campaign_id: campaign.id,
+        campaign_name: campaign.name,
+        discount_paise: discount.discount_paise,
+        final_paise: evalResult.final_total_paise,
+        detail: discount.detail,
+      };
+    },
   };
+}
+
+async function resolveCartItems(cartMandateId: string): Promise<CartItem[]> {
+  const cartRes = await db().execute({
+    sql: "SELECT payload_json FROM mandates WHERE id = ?",
+    args: [cartMandateId],
+  });
+  try {
+    const cartPayload = JSON.parse(String(cartRes.rows[0]?.payload_json ?? "{}")) as {
+      items: { sku: string; qty: number }[];
+    };
+    const items: CartItem[] = [];
+    for (const item of cartPayload.items ?? []) {
+      const pRes = await db().execute({
+        sql: "SELECT sku, title, category, price_paise FROM products WHERE sku = ?",
+        args: [item.sku],
+      });
+      const p = pRes.rows[0];
+      if (p) {
+        items.push({
+          sku: String(p.sku),
+          title: String(p.title),
+          category: String(p.category),
+          qty: item.qty,
+          unit_price_paise: Number(p.price_paise),
+          line_total_paise: Number(p.price_paise) * item.qty,
+        });
+      }
+    }
+    return items;
+  } catch {
+    return [];
+  }
+}
+
+function generateAgentMsg(items: { title: string; qty: number }[], totalPaise: number): string {
+  const itemList = items.map((i) => `${i.title}${i.qty > 1 ? ` (×${i.qty})` : ""}`).join(", ");
+  return `I would like to purchase ${itemList} from the bazaar. Total: ₹${(totalPaise / 100).toLocaleString("en-IN")}. Please review and confirm.`;
 }
 
 /** JSON-schema descriptions for function-calling surfaces (harness + MCP share these). */
@@ -326,6 +509,24 @@ export const TOOL_SCHEMAS: Record<StoreToolName, { description: string; paramete
       type: "object",
       properties: { suggestion_id: { type: "string" } },
       required: ["suggestion_id"],
+    },
+  },
+  list_campaigns: {
+    description: "List active campaigns (bundle deals, flash sales, cross-sell offers) the merchant is running. Check this before checkout to find applicable discounts.",
+    parameters: {
+      type: "object",
+      properties: {},
+    },
+  },
+  apply_campaign: {
+    description: "Apply a campaign discount to a signed cart. The cart must qualify for the campaign rules. Returns the discount amount and final total.",
+    parameters: {
+      type: "object",
+      properties: {
+        campaign_id: { type: "string", description: "ID of the campaign to apply" },
+        cart_mandate_id: { type: "string", description: "ID of the signed cart mandate" },
+      },
+      required: ["campaign_id", "cart_mandate_id"],
     },
   },
 };

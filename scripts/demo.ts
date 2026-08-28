@@ -97,7 +97,7 @@ async function s1() {
 async function s2() {
   section("S2 · gate: oversized cart rings the shopkeeper bell");
   const t0 = Date.now();
-  const sid = await newSession("gemini/festive-shopper", "gemini", "Wants the premium hamper");
+  const sid = await newSession("claude/festive-shopper", "claude", "Wants the premium hamper");
   const intent = await makeIntent(sid, 3000);
   const cart = await makeCart(sid, intent, [{ sku: "MITH-HAMP-013", qty: 1 }]);
 
@@ -117,7 +117,7 @@ async function s2() {
 /* ── S3 — failure → recovery ─────────────────────────────────────── */
 async function s3(): Promise<string | null> {
   section("S3 · failure: real failed payment, then recovery");
-  const sid = await newSession("gemini/snacker", "gemini", "Evening samosa run");
+  const sid = await newSession("claude/snacker", "claude", "Evening samosa run");
   const intent = await makeIntent(sid, 250);
   const cart = await makeCart(sid, intent, [{ sku: "SNCK-SAMS-007", qty: 2 }]);
   if (cart.status !== 200) return bad("S3 setup failed", cart.json), null;
@@ -183,6 +183,40 @@ async function s6(snackerSessionId: string | null) {
   expect(acc.json.accepted === true, "agent ACCEPTED — attach rate now measurable");
 }
 
+/* ── S7 — campaign orchestrator ───────────────────────────────────── */
+async function s7() {
+  section("S7 · campaigns: bundle discount auto-applied at checkout");
+
+  // List active campaigns
+  const list = await api<{ campaigns: { id: string; name: string; kind: string }[] }>("GET", "/api/campaigns");
+  expect(list.json.campaigns.length >= 2, `${list.json.campaigns.length} active campaigns`, list.json.campaigns.map((c) => c.name));
+
+  // Build a cart that qualifies for the mithai bundle (2+ mithai items)
+  const sid = await newSession("claude/campaign-shopper", "claude", "Diwali gift buyer");
+  const intent = await makeIntent(sid, 2000, ["mithai"]);
+  const cart = await makeCart(sid, intent, [
+    { sku: "MITH-KAJU-004", qty: 1 },  // ₹749
+    { sku: "MITH-LADD-005", qty: 1 },  // ₹425
+  ]);
+  expect(cart.status === 200, `cart signed: 2 mithai items, ₹${(cart.json.total_paise ?? 0) / 100}`);
+
+  // Checkout — campaigns should auto-apply
+  const co = await api<{ status: string; checkout_url?: string; payment_row_id?: string; cart_items?: unknown[] }>("POST", "/api/checkout",
+    { cart_mandate_id: cart.json.mandate.id });
+  expect(co.status === 200 && co.json.status === "issued", "checkout issued with campaign discount");
+
+  // Check campaign application was recorded
+  const metrics = await api<{ campaigns: { total_applied: number; total_discount_paise: number } }>("GET", "/api/metrics");
+  expect(metrics.json.campaigns.total_applied >= 1, `campaign applied: ${metrics.json.campaigns.total_applied} total`,
+    `₹${metrics.json.campaigns.total_discount_paise / 100} discount given`);
+
+  // Complete payment
+  if (co.json.checkout_url) {
+    const settled = await settleLink(co.json.checkout_url, "success");
+    expect(settled.ok, "campaign cart settled with success@razorpay");
+  }
+}
+
 /* ── run ─────────────────────────────────────────────────────────── */
 console.log(`\n🪔 THE AGENT BAZAAR — demo driver → ${BASE}\n`);
 try {
@@ -196,6 +230,7 @@ try {
   await s4();
   await s5();
   await s6(snackerSession);
+  await s7();
 } catch (e) {
   bad("demo crashed", String(e));
 }

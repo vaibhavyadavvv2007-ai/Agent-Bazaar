@@ -3,6 +3,7 @@ import StreetRules from "./_components/StreetRules";
 import ShopkeeperHUD from "./_components/ShopkeeperHUD";
 import DispatchDrawer from "./_components/DispatchDrawer";
 import AgentTranscript from "./_components/AgentTranscript";
+import FlashSaleBannerWrapper from "./_components/FlashSaleBannerWrapper";
 
 export const dynamic = "force-dynamic";
 
@@ -44,11 +45,19 @@ export default function Home() {
           <a className="underline decoration-(--rule-blue) underline-offset-2 hover:text-(--rule-blue)" href="/api/catalog?format=agent">
             Machine-readable catalog
           </a>
+          <a className="underline decoration-(--rule-blue) underline-offset-2 hover:text-(--rule-blue)" href="/campaigns">
+            Campaigns
+          </a>
           <a className="underline decoration-(--rule-blue) underline-offset-2 hover:text-(--rule-blue)" href="/receipts">
             Audit Trail Receipts
           </a>
         </nav>
       </header>
+
+      {/* ── Flash Sale Banner ────────────────────────────────── */}
+      <section className="mt-4" aria-label="Flash sales">
+        <FlashSaleBannerWrapper />
+      </section>
 
       {/* ── Settlement summary (instrument digits) ──────────────── */}
       <section className="mt-5" aria-label="Settlement summary">

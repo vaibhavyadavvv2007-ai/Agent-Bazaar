@@ -42,20 +42,20 @@ export default function AgentTranscript() {
       const agentName = shortName(String(e.payload?.agent_id ?? "agent"));
       const hue = hueFor(sessionId);
 
-      if (e.type === "agent.arrived") {
-        out.push({ id, ts, sessionId, agentName, hue, type: "arrival", text: `Agent arrived: ${e.payload?.persona ?? "unknown"}` });
-      } else if (e.type === "agent.spoke") {
-        out.push({ id, ts, sessionId, agentName, hue, type: "speech", text: String(e.payload?.text ?? "") });
-      } else if (e.type.startsWith("agent.tool.")) {
-        const toolName = e.type.replace("agent.tool.", "");
-        const args = e.payload?.args ? JSON.stringify(e.payload.args) : "{}";
-        const result = e.payload?.result ? JSON.stringify(e.payload.result) : "{}";
-        // Truncate long results for display
-        const shortResult = result.length > 1000 ? result.slice(0, 1000) + "..." : result;
-        out.push({ id, ts, sessionId, agentName, hue, type: "tool", toolName, toolArgs: args, toolResult: shortResult });
-      } else if (e.type === "agent.left") {
-        out.push({ id, ts, sessionId, agentName, hue, type: "departure", text: `Agent left after ${e.payload?.turns ?? 0} turns.` });
-      }
+    if (e.type === "agent.arrived") {
+      out.push({ id, ts, sessionId, agentName, hue, type: "arrival", text: `[ARRIVED] ${e.payload?.persona ?? "unknown"}` });
+    } else if (e.type === "agent.spoke") {
+      out.push({ id, ts, sessionId, agentName, hue, type: "speech", text: String(e.payload?.text ?? "") });
+    } else if (e.type.startsWith("agent.tool.")) {
+      const toolName = e.type.replace("agent.tool.", "");
+      const args = e.payload?.args ? JSON.stringify(e.payload.args) : "{}";
+      const result = e.payload?.result ? JSON.stringify(e.payload.result) : "{}";
+      // Truncate long results for display
+      const shortResult = result.length > 1000 ? result.slice(0, 1000) + "..." : result;
+      out.push({ id, ts, sessionId, agentName, hue, type: "tool", toolName, toolArgs: args, toolResult: shortResult });
+    } else if (e.type === "agent.left") {
+      out.push({ id, ts, sessionId, agentName, hue, type: "departure", text: `[DEPARTED] after ${e.payload?.turns ?? 0} turns` });
+    }
     }
     
     return out.filter(l => !filterSession || l.sessionId === filterSession);
@@ -131,7 +131,7 @@ export default function AgentTranscript() {
             )}
             
             {(l.type === "arrival" || l.type === "departure") && (
-              <div className="text-(--ink-soft) uppercase tracking-wide text-[10px] mt-1">
+              <div className="font-clause text-[10px] uppercase tracking-[0.14em] text-(--ink-soft) mt-1">
                 {l.text}
               </div>
             )}

@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS products (
 CREATE TABLE IF NOT EXISTS sessions (
   id         TEXT PRIMARY KEY,
   agent_id   TEXT NOT NULL,                    -- e.g. "claude/gift-buyer"
-  provider   TEXT NOT NULL,                    -- claude | gemini | mcp-client | rest
+  provider   TEXT NOT NULL,                    -- claude | mcp-client | rest
   persona    TEXT NOT NULL DEFAULT '',
   budget_paise INTEGER NOT NULL DEFAULT 0,     -- declared by the "user" at consent time
   started_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -133,6 +133,33 @@ CREATE TABLE IF NOT EXISTS suggestions (
   presented_at TEXT NOT NULL DEFAULT (datetime('now')),
   accepted     INTEGER                        -- NULL = no answer yet
 );
+
+-- Campaigns: bundle discounts, flash sales, cross-sell offers.
+-- Merchanter-configured promotions that agents can discover and apply.
+CREATE TABLE IF NOT EXISTS campaigns (
+  id            TEXT PRIMARY KEY,
+  name          TEXT NOT NULL,                 -- "Diwali Bundle Deal"
+  description   TEXT NOT NULL DEFAULT '',      -- "Buy 2+ mithai items, get 15% off"
+  kind          TEXT NOT NULL CHECK (kind IN ('bundle','flash_sale','cross_sell')),
+  config_json   TEXT NOT NULL,                 -- campaign-specific rules (see engine)
+  starts_at     TEXT NOT NULL,                 -- ISO timestamp
+  ends_at       TEXT NOT NULL,                 -- ISO timestamp
+  enabled       INTEGER NOT NULL DEFAULT 1,
+  created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Every campaign application is recorded — growth evidence, auditable.
+CREATE TABLE IF NOT EXISTS campaign_applications (
+  id              TEXT PRIMARY KEY,
+  campaign_id     TEXT NOT NULL REFERENCES campaigns(id),
+  session_id      TEXT NOT NULL REFERENCES sessions(id),
+  cart_mandate_id TEXT,
+  discount_paise  INTEGER NOT NULL,            -- how much was taken off
+  final_paise     INTEGER NOT NULL,            -- cart total after discount
+  applied_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_campaigns_active ON campaigns(enabled, starts_at, ends_at);
 
 -- The audit trail. Everything worth explaining lands here exactly once.
 -- Append-only, guarded like mandates.

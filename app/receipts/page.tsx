@@ -29,19 +29,20 @@ export default async function ReceiptsPage() {
 
   return (
     <main className="min-h-screen p-6 font-clause text-(--ink) sm:p-12">
-      <header className="mb-12 border-b-2 border-double border-(--ink) pb-6">
+      <header className="mb-6 border-b-2 border-double border-(--ink) pb-6">
         <div className="flex items-end justify-between">
           <div>
-            <h1 className="font-masthead text-4xl uppercase tracking-widest text-(--ink-soft)">Audit Trail</h1>
-            <p className="mt-2 text-sm uppercase tracking-widest text-(--ink-faint)">
+            <h1 className="font-masthead text-4xl uppercase tracking-widest text-(--ink)">Audit Trail</h1>
+            <p className="mt-2 font-clause text-[11px] uppercase tracking-[0.14em] text-(--ink-faint)">
               The Agent Bazaar · Settled Receipts
             </p>
           </div>
-          <Link href="/" className="text-sm underline decoration-(--rule-blue) underline-offset-4 hover:text-(--rule-blue)">
+          <Link href="/" className="font-clause text-sm underline decoration-(--rule-blue) underline-offset-4 hover:text-(--rule-blue)">
             Return to Floor
           </Link>
         </div>
       </header>
+      <div className="security-thread-band mb-8" aria-hidden="true" />
 
       <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {receipts.length === 0 ? (
@@ -100,6 +101,13 @@ export default async function ReceiptsPage() {
           })
         )}
       </div>
+
+      <footer className="mt-8 pt-3 text-center font-clause text-[11px] text-(--ink-soft)">
+        <p className="fig">
+          <span className="pointer" aria-hidden="true" />
+          Every receipt above is cryptographically linked to a signed mandate chain.
+        </p>
+      </footer>
     </main>
   );
 }

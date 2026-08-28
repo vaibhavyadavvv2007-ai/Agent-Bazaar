@@ -12,7 +12,7 @@ Primary: Razorpay engineers and hiring evaluators (the AI Builder Internship pan
 
 ## Product Purpose
 
-The Agent Bazaar is a working agentic-commerce store where real AI agents (Claude, Gemini, any MCP client) shop with real Razorpay test-mode money. It exists to prove one thing: agent spending can be explainable (signed mandate chain), bounded (a pure-function policy engine), gated (human approval on risky carts), and fully audited (an append-only ledger) — today, not in a whitepaper. Success = a shortlist panel interview and an internship offer.
+The Agent Bazaar is a working agentic-commerce store where real AI agents (Claude, Groq, any MCP client) shop with real Razorpay test-mode money. It exists to prove one thing: agent spending can be explainable (signed mandate chain), bounded (a pure-function policy engine), gated (human approval on risky carts), and fully audited (an append-only ledger) — today, not in a whitepaper. Success = a shortlist panel interview and an internship offer.
 
 ## Positioning
 

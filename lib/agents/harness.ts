@@ -18,7 +18,7 @@ import { storeTools, TOOL_SCHEMAS, type StoreToolName } from "@/lib/tools/store"
 export const MAX_TURNS = 12;
 
 export type HarnessConfig = {
-  provider: "groq" | "gemini" | "mcp-client";
+  provider: "groq" | "claude" | "mcp-client";
   agentId: string;
   persona: string;
   /** What the user asked this agent to do, e.g. "Buy Diwali sweets under ₹1500". */
