@@ -88,9 +88,9 @@ Thank you."
 - **Failure:** `failure@razorpay`
 
 ## Before Recording Checklist
-- [ ] `npm run setup && npm run dev` — dev server running
-- [ ] `npx tsx scripts/seed.ts` — campaigns + products seeded
-- [ ] Flash sale has time remaining (re-seed if expired: `npx tsx scripts/seed.ts`)
-- [ ] API key set in `.env.local` (CLAUDE_API_KEY)
-- [ ] Browser open on `localhost:3000`
+- [ ] Decide the URL: **https://agentbazaar-tau.vercel.app** (deployed, webhook live) or `localhost:3000`
+- [ ] Local recording additionally needs: `npm run setup && npm run dev` — dev server running
+- [ ] `npx tsx scripts/seed.ts` — refresh campaigns + flash sales (the 5-minute Diya deal expires)
+- [ ] API key set in `.env.local` (CLAUDE_API_KEY) — only needed for localhost
+- [ ] Browser open on the recording URL
 - [ ] Recording software ready (OBS, QuickTime, etc.)

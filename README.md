@@ -4,6 +4,10 @@
 
 Razorpay AI Buildathon · Track 01 · AI Growth & Agentic Commerce
 
+> **Live demo:** https://agentbazaar-tau.vercel.app — dispatch an agent from the
+> bazaar floor (Dispatch button, bottom-right), watch it shop, and settle the
+> cart when the checkout modal rings.
+
 ![The Agent Bazaar Gazette — live bazaar floor with AI agents shopping](docs/preview.gif)
 
 *An agent walks into the bazaar, browses the stalls, signs a mandate, and pays — all rendered as a live gazette notification. Every rupee is explainable, bounded, and gated.*
