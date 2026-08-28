@@ -33,14 +33,14 @@ export async function GET() {
              SUM(CASE WHEN accepted = 1 THEN 1 ELSE 0 END) AS accepted
       FROM suggestions`),
     db().execute(`
-      SELECT COUNT(*) AS total, COALESCE(SUM(discount_paise), 0) AS total_discount
-      FROM campaign_applications`),
-    db().execute(`
       SELECT json_extract(j.value, '$.sku') AS sku,
              CAST(json_extract(j.value, '$.qty') AS INTEGER) AS qty,
              json_extract(m.payload_json, '$.total_paise') AS total
       FROM mandates m, json_each(json_extract(m.payload_json, '$.items')) j
       WHERE m.type = 'CART'`),
+    db().execute(`
+      SELECT COUNT(*) AS total, COALESCE(SUM(discount_paise), 0) AS total_discount
+      FROM campaign_applications`),
   ]);
 
   // Approval latency in seconds (p50 / p95), computed in JS from raw rows.

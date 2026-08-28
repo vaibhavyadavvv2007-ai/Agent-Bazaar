@@ -31,9 +31,10 @@ function getTimeRemaining(endsAt: string) {
   const now = Date.now();
   const end = new Date(endsAt).getTime();
   const diff = Math.max(0, end - now);
-  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
   const seconds = Math.floor((diff % 60000) / 1000);
-  return { total: diff, minutes, seconds, expired: diff <= 0 };
+  return { total: diff, hours, minutes, seconds, expired: diff <= 0 };
 }
 
 export default function FlashSaleBanner({
@@ -120,6 +121,14 @@ function FlashSaleCard({ sale, tick }: { sale: FlashSale; tick: number }) {
         {/* Countdown — instrument digits */}
         <div className="ml-3 text-right">
           <div className={`digits text-lg ${urgency === "critical" ? "text-(--seal)" : urgency === "high" ? "text-(--seal)" : "text-(--ink)"}`}>
+            {remaining.hours > 0 && (
+              <>
+                {String(remaining.hours).padStart(2, "0").split("").map((d, i) => (
+                  <span key={`h${i}`} className={`digit ${urgency === "critical" ? "animate-pulse" : ""}`}>{d}</span>
+                ))}
+                <span className="mx-px">:</span>
+              </>
+            )}
             {String(remaining.minutes).padStart(2, "0").split("").map((d, i) => (
               <span key={`m${i}`} className={`digit ${urgency === "critical" ? "animate-pulse" : ""}`}>{d}</span>
             ))}

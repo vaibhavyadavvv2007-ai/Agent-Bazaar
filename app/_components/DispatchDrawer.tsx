@@ -29,35 +29,35 @@ const PRESETS: Preset[] = [
     task: "Buy the best Diwali sweets you can find. Look for kaju katli, laddoo, or soan papdi. Pick 2 items that complement each other.",
     budget: 1500,
     categories: ["mithai", "chai"],
-    icon: "M",
+    icon: "🍬",
   },
   {
     label: "Chai Collection",
     task: "Get a masala chai kit and a kulhad chai set for a chai lover. Browse all the chai options first.",
     budget: 1000,
     categories: ["chai"],
-    icon: "C",
+    icon: "☕",
   },
   {
     label: "Festival Decor",
     task: "Buy Diwali decorations. Get diyas, maybe a rangoli pack, and marigold garlands. Keep it festive.",
     budget: 600,
     categories: ["decor"],
-    icon: "D",
+    icon: "🪔",
   },
   {
     label: "Premium Hamper",
     task: "Buy the Premium Diwali Hamper. It is expensive and will likely need shopkeeper approval.",
     budget: 3000,
     categories: ["mithai"],
-    icon: "P",
+    icon: "🎁",
   },
   {
     label: "Cricket Bat",
     task: "Buy a Kashmir Willow cricket bat. This will be denied by policy (cricket category is prohibited).",
     budget: 1200,
     categories: ["cricket"],
-    icon: "X",
+    icon: "🏏",
   },
 ];
 
@@ -240,7 +240,7 @@ export default function DispatchDrawer() {
                       className="dispatch-preset press"
                       style={{ animationDelay: open ? `${i * 40}ms` : "0ms" }}
                     >
-                      <span className="mr-1 seal text-[9px]" style={{ transform: "none" }}>{p.icon}</span>
+                      <span className="mr-1 text-[13px]">{p.icon}</span>
                       {p.label}
                     </button>
                   ))}

@@ -71,7 +71,7 @@ for (const r of rules) {
 
 // Pre-seed some historical events so the notice board is not empty
 const demoEvents = [
-  { id: "evt_1", ts: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), session_id: "demo-session-1", type: "agent.arrived", payload: { agent_id: "gemini/gift-buyer", persona: "A curious festival shopper" } },
+  { id: "evt_1", ts: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), session_id: "demo-session-1", type: "agent.arrived", payload: { agent_id: "claude/gift-buyer", persona: "A curious festival shopper" } },
   { id: "evt_2", ts: new Date(Date.now() - 1000 * 60 * 59 * 2).toISOString(), session_id: "demo-session-1", type: "agent.tool.create_intent_mandate", payload: { result: { hash: "3a8b4e72fc" } } },
   { id: "evt_3", ts: new Date(Date.now() - 1000 * 60 * 58 * 2).toISOString(), session_id: "demo-session-1", type: "mandate.signed.intent", payload: { max_amount_paise: 150000, hash: "3a8b4e72fc" } },
   { id: "evt_4", ts: new Date(Date.now() - 1000 * 60 * 55 * 2).toISOString(), session_id: "demo-session-1", type: "agent.tool.propose_cart", payload: { result: { hash: "9f2c1b48da" } } },
@@ -95,6 +95,7 @@ const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
 const monthFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
+const fourHoursFromNow = new Date(now.getTime() + 4 * 60 * 60 * 1000).toISOString();
 const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000).toISOString();
 const twoMinutesFromNow = new Date(now.getTime() + 2 * 60 * 1000).toISOString();
 
@@ -115,7 +116,7 @@ const campaigns = [
     kind: "flash_sale",
     config: { skus: ["CHAI-MSL-001"], sale_price_paise: 29900 },
     starts_at: weekAgo,
-    ends_at: weekFromNow,
+    ends_at: fourHoursFromNow,
   },
   {
     id: "camp-cross-sell",

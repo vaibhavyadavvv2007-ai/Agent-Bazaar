@@ -263,14 +263,14 @@ export function Street() {
                   fill="none"
                 />
                 <path d="M0 22 h132" stroke="var(--seal)" strokeWidth="2" opacity="0.85" />
-                <text x="10" y="40" fontSize="9" fill="var(--ink-soft)" fontWeight="700" className="font-clause" letterSpacing="0.08em">{CATEGORY_LABEL[p.category] ?? "STALL"}</text>
-                <text x="32" y="40" fontSize="11.5" fill="var(--ink)" fontWeight="600" className="font-masthead" style={{ fontSize: 11 }}>
-                  {p.title.length > 15 ? `${p.title.slice(0, 14)}…` : p.title}
+                <text x="10" y="36" fontSize="9" fill="var(--ink-soft)" fontWeight="700" className="font-clause" letterSpacing="0.08em">{CATEGORY_LABEL[p.category] ?? "STALL"}</text>
+                <text x="10" y="52" fontSize="11.5" fill="var(--ink)" fontWeight="600" className="font-masthead" style={{ fontSize: 11 }}>
+                  {p.title.length > 18 ? `${p.title.slice(0, 17)}…` : p.title}
                 </text>
-                <text x="32" y="56" fontSize="11" fill="var(--seal)" className="font-clause">
+                <text x="10" y="68" fontSize="11" fill="var(--seal)" className="font-clause">
                   {rupees(p.price_paise)}
                 </text>
-                <text x="10" y="84" fontSize="8.5" fill="var(--ink-soft)" className="font-clause">
+                <text x="10" y="86" fontSize="8.5" fill="var(--ink-soft)" className="font-clause">
                   {p.sku} · stock {p.stock}
                 </text>
               </g>
