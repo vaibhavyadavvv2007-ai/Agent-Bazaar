@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { AdapterCall } from "./harness";
 import { TOOL_SCHEMAS, type StoreToolName } from "@/lib/tools/store";
 
-export function claudeAdapter(model: string = "claude-3-5-sonnet-20241022"): AdapterCall {
+export function claudeAdapter(model: string = "claude-3-haiku-20240307"): AdapterCall {
   const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
 
   return async ({ system, tools, messages }) => {

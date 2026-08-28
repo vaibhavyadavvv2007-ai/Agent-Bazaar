@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
   const provider = body.provider ?? "groq";
 
   const adapter = body.provider === "claude"
-    ? claudeAdapter(body.model ?? "claude-3-5-sonnet-20241022")
+    ? claudeAdapter(body.model ?? "claude-3-haiku-20240307")
     : groqAdapter(body.model ?? "llama-3.3-70b-versatile");
 
   try {
