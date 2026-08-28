@@ -26,6 +26,7 @@ type CheckoutDetails = {
   payment_row_id: string;
   rzp_order_id: string;
   amount_paise: number;
+  discount_paise?: number;
   cart_items: CartItem[];
   agent_message: string;
   session_id: string;
@@ -148,10 +149,11 @@ export default function ConversationalCheckout({
     }
   }, [details, loadRazorpay]);
 
-  const total = details.cart_items.reduce(
+  const subtotal = details.cart_items.reduce(
     (s, item) => s + item.line_total_paise,
     0
   );
+  const discount = details.discount_paise ?? Math.max(0, subtotal - details.amount_paise);
 
   return (
     <div
@@ -212,7 +214,7 @@ export default function ConversationalCheckout({
               {details.cart_items.map((item, i) => (
                 <div
                   key={item.sku}
-                  className="flex items-baseline justify-between border border-(--paper-edge) bg-(--paper) px-3 py-2 font-clause text-[12px]"
+                  className="flex items-baseline justify-between border border-(--paper-edge) bg-(--paper) px-3 py-2 font-clause text-[13px]"
                 >
                   <div className="flex items-baseline gap-2">
                     <span className="font-bold text-(--ink-soft)">
@@ -234,13 +236,27 @@ export default function ConversationalCheckout({
           <div className="double-rule my-3" aria-hidden="true" />
 
           {/* Total */}
-          <div className="flex items-baseline justify-between border-t-2 border-(--ink) pt-2">
-            <span className="font-masthead text-sm font-bold uppercase tracking-[0.08em]">
-              Total
-            </span>
-            <span className="font-masthead text-lg font-bold text-(--seal)">
-              {rupees(total)}
-            </span>
+          <div className="border-t-2 border-(--ink) pt-2">
+            {discount > 0 && (
+              <>
+                <div className="flex items-baseline justify-between font-clause text-[11px] text-(--ink-soft)">
+                  <span>Subtotal</span>
+                  <span>{rupees(subtotal)}</span>
+                </div>
+                <div className="flex items-baseline justify-between font-clause text-[11px] text-(--henna)">
+                  <span>Campaign discounts</span>
+                  <span>−{rupees(discount)}</span>
+                </div>
+              </>
+            )}
+            <div className="mt-1 flex items-baseline justify-between border-t border-(--paper-edge) pt-1">
+              <span className="font-masthead text-sm font-bold uppercase tracking-[0.08em]">
+                Total charged
+              </span>
+              <span className="font-masthead text-lg font-bold text-(--seal)">
+                {rupees(details.amount_paise)}
+              </span>
+            </div>
           </div>
 
           {/* Status messages */}

@@ -77,7 +77,7 @@ Verified against Razorpay's docs: there is **no headless payment-authorization A
 
 ## Data model
 
-See `schema.sql` (fully commented). Ten tables; the load-bearing ones:
+See `schema.sql` (fully commented). Twelve tables; the load-bearing ones:
 
 - `mandates` — append-only, canonical-JSON payloads, sha256 hashes, parent-hash links, Ed25519 sigs, actor keys in `actor_keys`
 - `policy_rules` / `policy_decisions` — the bounds, and EVERY verdict with named rule hits

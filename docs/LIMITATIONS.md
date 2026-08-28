@@ -17,7 +17,9 @@ All sessions on the deployed demo are driven by `scripts/demo.ts` (or hand-run e
 ## Single instance assumptions
 - The SSE bus fans out per server instance; multi-region/multi-instance fanout would need Redis/Postgres LISTEN-NOTIFY. Fine at demo scale, noted honestly.
 - Actor keys live in the DB (demo-grade). Production: HSM/KMS-backed keys, per-user key material.
-- Policy rules are global/per-agent rows managed by seed script; there is no merchant UI for editing them yet.
+- Policy rules are global/per-agent rows; the bazaar floor's Standing Orders sliders edit the cap/limit rules live, but there is no full rule CRUD UI (velocity windows, per-agent scoping are seed/SQL only).
+- Merchant mutation APIs (campaigns create/edit/delete, policy PUT, approvals) carry no authentication — this is a single-shopkeeper demo, not multi-tenant. Production needs merchant authz before any of those routes.
+- On localhost, Razorpay webhooks cannot reach the app, so the checkout pages also POST a signature-verified `/api/checkout/capture` on payment success (the same HMAC verification a webhook performs). Deployed, the webhook is the settlement truth and the reconciler the backstop.
 
 ## What is deliberately NOT here (scope honesty)
 - Refunds, subscriptions, Route/settlements to vendors — cut to keep one loop excellent.
@@ -27,4 +29,4 @@ All sessions on the deployed demo are driven by `scripts/demo.ts` (or hand-run e
 
 ## Known rough edges
 - Playwright settlement driver depends on Razorpay's hosted-page DOM (selectors can drift; screenshots land in `shots/` when it misses).
-- Mandate TTLs (15/10 min) are generous for demos; production would tighten and add renewal ceremony.
+- Mandate TTLs (30/30/15 min) are generous for human-paced demos; production would tighten and add renewal ceremony.

@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { createPaymentMandate, requestCheckout } from "@/lib/server";
 import { db } from "@/lib/db";
 import { publish } from "@/lib/events/bus";
+import { priceCartWithCampaigns, recordCampaignApplications } from "@/lib/campaigns/apply";
 
 export const dynamic = "force-dynamic";
 
 /**
  * POST /api/checkout
  *   { payment_mandate_id }  — gate an already-signed PAYMENT mandate, or
- *   { cart_mandate_id }     — shorthand: sign the PAYMENT mandate (merchant)
- *                             then run the gate.
+ *   { cart_mandate_id }     — shorthand: price with active campaigns, sign
+ *                             the PAYMENT mandate (merchant), run the gate.
  *   { conversational? }     — if true, return order details for in-app modal
  *                             instead of a hosted checkout URL.
  *
@@ -20,7 +21,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   let body: { payment_mandate_id?: string; cart_mandate_id?: string; conversational?: boolean };
   try {
-    body = (await req.json()) as typeof body;
+    body = await req.json();
   } catch {
     return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
   }
@@ -38,6 +39,11 @@ export async function POST(req: NextRequest) {
 
     const result = await requestCheckout(paymentMandateId, req.nextUrl.origin);
 
+    // A discount only becomes real when the checkout actually issues.
+    if (result.status === "issued") {
+      await recordIssuedDiscounts(paymentMandateId);
+    }
+
     // Conversational mode: return full order details for in-app modal
     if (body.conversational && result.status === "issued" && result.payment_row_id) {
       const payRes = await db().execute({
@@ -45,30 +51,29 @@ export async function POST(req: NextRequest) {
         args: [result.payment_row_id],
       });
       const rzpOrderId = String(payRes.rows[0]?.rzp_order_id ?? "");
-      const amountPaise = Number(payRes.rows[0]?.amount_paise ?? 0);
+      const amountPaise = Number(payRes.rows[0]?.amount_paise ?? result.amount_paise);
 
-      // Get cart items from the mandate chain
-      const cartMandateId = body.cart_mandate_id ?? await getCartMandateId(paymentMandateId);
-      const cartItems = cartMandateId ? await getCartItems(cartMandateId) : [];
-      const totalPaise = cartItems.reduce((s, i) => s + i.line_total_paise, 0);
+      // Cart items (full list price) + the discount the mandate already baked in.
+      const cartMandateId = body.cart_mandate_id ?? (await getCartMandateId(paymentMandateId));
+      const pricing = cartMandateId ? await priceCartWithCampaigns(cartMandateId) : null;
+      const cartItems = pricing?.items ?? [];
 
-      // Get session for the event
       const sessionRes = await db().execute({
         sql: "SELECT session_id FROM mandates WHERE id = ?",
         args: [paymentMandateId],
       });
       const sessionId = String(sessionRes.rows[0]?.session_id ?? "");
 
-      // Emit conversational checkout event
       await publish({
         type: "payment.checkout_conversational",
         session_id: sessionId,
         payload: {
           payment_row_id: result.payment_row_id,
           rzp_order_id: rzpOrderId,
-          amount_paise: totalPaise || amountPaise,
+          amount_paise: amountPaise,
+          discount_paise: pricing && pricing.discount_paise > 0 ? pricing.discount_paise : undefined,
           cart_items: cartItems,
-          agent_message: generateAgentMessage(cartItems, totalPaise || amountPaise),
+          agent_message: generateAgentMessage(cartItems, amountPaise),
           mandate_id: paymentMandateId,
         },
       });
@@ -85,11 +90,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ...result, payment_mandate_id: paymentMandateId }, { status });
   } catch (e) {
     const detail =
-      e instanceof Error
-        ? `${e.name}: ${e.message}`
-        : JSON.stringify(e); // razorpay SDK throws plain objects
+      e instanceof Error ? `${e.name}: ${e.message}` : JSON.stringify(e); // razorpay SDK throws plain objects
     console.error("[checkout] failed:", detail);
     return NextResponse.json({ error: "checkout failed", detail }, { status: 500 });
+  }
+}
+
+/**
+ * Record campaign applications for an ISSUED payment mandate that carries a
+ * discount. Mandates created elsewhere without campaigns are left untouched.
+ */
+async function recordIssuedDiscounts(paymentMandateId: string): Promise<void> {
+  try {
+    const res = await db().execute({
+      sql: "SELECT session_id, payload_json FROM mandates WHERE id = ?",
+      args: [paymentMandateId],
+    });
+    const row = res.rows[0];
+    if (!row) return;
+    const payload = JSON.parse(String(row.payload_json)) as {
+      cart_mandate_id: string; discount_paise?: number;
+    };
+    if (!payload.cart_mandate_id || !payload.discount_paise) return;
+
+    const pricing = await priceCartWithCampaigns(payload.cart_mandate_id);
+    await recordCampaignApplications(String(row.session_id), payload.cart_mandate_id, pricing);
+  } catch {
+    // Recording a discount must never fail the checkout itself.
   }
 }
 
@@ -106,39 +133,7 @@ async function getCartMandateId(paymentMandateId: string): Promise<string | null
   }
 }
 
-async function getCartItems(cartMandateId: string) {
-  const cartRes = await db().execute({
-    sql: "SELECT payload_json FROM mandates WHERE id = ?",
-    args: [cartMandateId],
-  });
-  try {
-    const cartPayload = JSON.parse(String(cartRes.rows[0]?.payload_json ?? "{}")) as {
-      items: { sku: string; qty: number }[];
-    };
-    const items = [];
-    for (const item of cartPayload.items ?? []) {
-      const pRes = await db().execute({
-        sql: "SELECT sku, title, price_paise FROM products WHERE sku = ?",
-        args: [item.sku],
-      });
-      const p = pRes.rows[0];
-      if (p) {
-        items.push({
-          sku: String(p.sku),
-          title: String(p.title),
-          qty: item.qty,
-          unit_price_paise: Number(p.price_paise),
-          line_total_paise: Number(p.price_paise) * item.qty,
-        });
-      }
-    }
-    return items;
-  } catch {
-    return [];
-  }
-}
-
-function generateAgentMessage(items: { title: string; qty: number }[], totalPaise: number): string {
+function generateAgentMessage(items: { title: string; qty: number }[], totalPaise: number) {
   const itemList = items.map((i) => `${i.title}${i.qty > 1 ? ` (×${i.qty})` : ""}`).join(", ");
   return `I would like to purchase ${itemList} from the bazaar. Total: ₹${(totalPaise / 100).toLocaleString("en-IN")}. Please review and confirm.`;
 }
@@ -146,14 +141,32 @@ function generateAgentMessage(items: { title: string; qty: number }[], totalPais
 async function createPaymentMandateFor(cartMandateId: string): Promise<string | null> {
   try {
     // Session id comes from the cart itself.
-    const { db } = await import("@/lib/db");
     const res = await db().execute({
       sql: "SELECT session_id FROM mandates WHERE id = ? AND type = 'CART'",
       args: [cartMandateId],
     });
     const sessionId = res.rows[0] ? String(res.rows[0].session_id) : null;
     if (!sessionId) return null;
-    const m = await createPaymentMandate(sessionId, cartMandateId);
+
+    // Price with every active campaign — the discount goes INTO the signed
+    // mandate amount, so the order, the mandate and the ledger agree.
+    const pricing = await priceCartWithCampaigns(cartMandateId);
+    const m = await createPaymentMandate(
+      sessionId,
+      cartMandateId,
+      pricing.discount_paise > 0
+        ? {
+            discount_paise: pricing.discount_paise,
+            original_total_paise: pricing.original_total_paise,
+            campaigns: pricing.applicable.map((a) => ({
+              campaign_id: a.campaign_id,
+              campaign_name: a.campaign_name,
+              kind: a.kind,
+              discount_paise: a.discount_paise,
+            })),
+          }
+        : undefined
+    );
     return m.id;
   } catch (e) {
     const detail = e instanceof Error ? `${e.name}: ${e.message}` : JSON.stringify(e);

@@ -9,6 +9,7 @@ import {
 } from "@/lib/server";
 import { reconcileByReference } from "@/lib/razorpay/rail";
 import { evaluateCampaigns, campaignFromRow, type Campaign, type CartItem } from "@/lib/campaigns/engine";
+import { priceCartWithCampaigns, recordCampaignApplications } from "@/lib/campaigns/apply";
 
 /**
  * StoreTools — ONE implementation of "shop at the bazaar", consumed by every
@@ -154,59 +155,40 @@ export function storeTools(session: SessionContext) {
     },
 
     /**
-     * Step 3: checkout. Creates + signs the PAYMENT mandate (merchant), runs
-     * the policy gate, and on allow issues real test-mode rails. This single
-     * call is deliberately the ONLY way money ever moves.
+     * Step 3: checkout. Prices the cart with every active campaign (the
+     * discount is baked into the signed PAYMENT mandate — what the mandate
+     * says, what Razorpay charges and what the ledger records is ONE
+     * number), runs the policy gate, and on allow issues real test-mode
+     * rails. This single call is deliberately the ONLY way money ever moves.
      *
      * When checkout is issued, emits a payment.checkout_conversational event
      * so the bazaar floor shows the in-app conversational checkout modal.
      */
     async request_checkout(input: { cart_mandate_id: string }): Promise<CheckoutResult & { guidance?: string }> {
-      // get_payment_status-driven flows need the payment row id, so keep the
-      // association discoverable: the mandate chain is the key.
-      const paymentMandate = await createPaymentMandate(session.sessionId, input.cart_mandate_id);
+      const pricing = await priceCartWithCampaigns(input.cart_mandate_id);
+
+      const paymentMandate = await createPaymentMandate(
+        session.sessionId,
+        input.cart_mandate_id,
+        pricing.discount_paise > 0
+          ? {
+              discount_paise: pricing.discount_paise,
+              original_total_paise: pricing.original_total_paise,
+              campaigns: pricing.applicable.map((a) => ({
+                campaign_id: a.campaign_id,
+                campaign_name: a.campaign_name,
+                kind: a.kind,
+                discount_paise: a.discount_paise,
+              })),
+            }
+          : undefined
+      );
       const result = await requestCheckout(paymentMandate.id);
 
-      // On successful checkout, auto-apply campaigns and emit conversational event
       if (result.status === "issued" && result.payment_row_id) {
-        const cartItems = await resolveCartItems(input.cart_mandate_id);
-        let totalPaise = cartItems.reduce((s, i) => s + i.line_total_paise, 0);
+        // The discount is real now — record it in the ledger.
+        await recordCampaignApplications(session.sessionId, input.cart_mandate_id, pricing);
 
-        // Auto-apply active campaigns
-        const now = new Date().toISOString();
-        const campRes = await db().execute({
-          sql: `SELECT * FROM campaigns WHERE enabled = 1 AND starts_at <= ? AND ends_at >= ?`,
-          args: [now, now],
-        });
-        if (campRes.rows.length > 0) {
-          const allCampaigns = campRes.rows.map((r) => campaignFromRow(r as any));
-          const campResult = evaluateCampaigns(allCampaigns, cartItems, now);
-          if (campResult.total_discount_paise > 0) {
-            // Record each applied campaign
-            for (const applied of campResult.applicable) {
-              const appId = `camp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-              await db().execute({
-                sql: `INSERT INTO campaign_applications (id, campaign_id, session_id, cart_mandate_id, discount_paise, final_paise)
-                      VALUES (?, ?, ?, ?, ?, ?)`,
-                args: [appId, applied.campaign_id, session.sessionId, input.cart_mandate_id, applied.discount_paise, campResult.final_total_paise],
-              });
-              await publish({
-                type: "campaign.applied",
-                session_id: session.sessionId,
-                payload: {
-                  campaign_id: applied.campaign_id,
-                  campaign_name: applied.campaign_name,
-                  kind: applied.kind,
-                  discount_paise: applied.discount_paise,
-                  detail: applied.detail,
-                },
-              });
-            }
-            totalPaise = campResult.final_total_paise;
-          }
-        }
-
-        // Get the Razorpay order ID
         const payRes = await db().execute({
           sql: "SELECT rzp_order_id FROM payments WHERE id = ?",
           args: [result.payment_row_id],
@@ -219,9 +201,10 @@ export function storeTools(session: SessionContext) {
           payload: {
             payment_row_id: result.payment_row_id,
             rzp_order_id: rzpOrderId,
-            amount_paise: totalPaise,
-            cart_items: cartItems,
-            agent_message: generateAgentMsg(cartItems, totalPaise),
+            amount_paise: result.amount_paise,
+            discount_paise: pricing.discount_paise > 0 ? pricing.discount_paise : undefined,
+            cart_items: pricing.items,
+            agent_message: generateAgentMsg(pricing.items, result.amount_paise),
             mandate_id: paymentMandate.id,
           },
         });
@@ -229,7 +212,7 @@ export function storeTools(session: SessionContext) {
 
       const guidance =
         result.status === "issued"
-          ? "Rails issued. The shopkeeper will see your order in the conversational checkout. The human MUST confirm and complete payment. Stop and report this immediately. Do NOT poll get_payment_status."
+          ? `Rails issued at ₹${(result.amount_paise / 100).toLocaleString("en-IN")}${pricing.discount_paise > 0 ? ` (after ₹${(pricing.discount_paise / 100).toLocaleString("en-IN")} in campaign discounts)` : ""}. The shopkeeper will see your order in the conversational checkout. The human MUST confirm and complete payment. Stop and report this immediately. Do NOT poll get_payment_status.`
           : result.status === "needs_approval"
             ? "A policy rule tripped. The shopkeeper must approve. Stop and report this immediately. Do NOT poll."
             : result.status === "denied"

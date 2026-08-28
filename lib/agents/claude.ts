@@ -2,8 +2,13 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { AdapterCall } from "./harness";
 import { TOOL_SCHEMAS, type StoreToolName } from "@/lib/tools/store";
 
-export function claudeAdapter(model: string = "claude-3-haiku-20240307"): AdapterCall {
-  const anthropic = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
+export function claudeAdapter(model: string = "claude-haiku-4-5"): AdapterCall {
+  // baseURL is pinned so a stray ANTHROPIC_BASE_URL in the host environment
+  // (proxies, wrappers) can't silently redirect payments-bound agent traffic.
+  const anthropic = new Anthropic({
+    apiKey: process.env.CLAUDE_API_KEY,
+    baseURL: "https://api.anthropic.com",
+  });
 
   return async ({ system, tools, messages }) => {
     // Map internal tool schemas to Anthropic format

@@ -1,5 +1,20 @@
 {
-  "description": "Impeccable design detector: immediate-tier checks after Edit/Write on UI files, full-rule deep pass on Stop.",
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/api/health)",
+      "Bash(curl -s http://localhost:3000/api/health)",
+      "Bash(npx tsx *)",
+      "Bash(cd *)",
+      "Bash(node -e ' *)",
+      "Bash(env)",
+      "Bash(curl -s \"http://localhost:3000/api/events?limit=80\")",
+      "Bash(rm -f agent-run-result.json dev-server.log)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'fix: campaign discounts now reach the signed mandate and the real charge *)"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {
@@ -26,5 +41,6 @@
         ]
       }
     ]
-  }
+  },
+  "description": "Impeccable design detector: immediate-tier checks after Edit/Write on UI files, full-rule deep pass on Stop."
 }

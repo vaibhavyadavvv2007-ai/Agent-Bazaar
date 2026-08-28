@@ -192,17 +192,43 @@ export async function createCartMandate(
 
 /* ── Step 3: PAYMENT ─────────────────────────────────────────────────── */
 
-export async function createPaymentMandate(sessionId: string, cartMandateId: string): Promise<MandateRow> {
+/**
+ * Campaign discounts the merchant honors at pricing time. Baked into the
+ * signed mandate amount — the mandate, the Razorpay order, the payment row
+ * and the ledger all carry ONE number. A discount that never reaches the
+ * charge is a discount that never happened.
+ */
+export type PaymentDiscount = {
+  discount_paise: number;
+  original_total_paise: number;
+  campaigns: { campaign_id: string; campaign_name: string; kind: string; discount_paise: number }[];
+};
+
+export async function createPaymentMandate(
+  sessionId: string,
+  cartMandateId: string,
+  discount?: PaymentDiscount
+): Promise<MandateRow> {
   const cart = await getMandate(cartMandateId);
   if (!cart || cart.type !== "CART") throw new PipelineError("unknown cart mandate");
   assertFresh(cart);
   const payload = JSON.parse(cart.payload_json) as { total_paise: number };
 
+  const total = payload.total_paise;
+  const discountPaise = Math.min(Math.max(discount?.discount_paise ?? 0, 0), total);
+
   return insertMandate(sessionId, "PAYMENT", "merchant", {
     type: "PAYMENT",
     session_id: sessionId,
     cart_mandate_id: cartMandateId,
-    amount_paise: payload.total_paise,
+    amount_paise: total - discountPaise,
+    ...(discountPaise > 0
+      ? {
+          original_total_paise: total,
+          discount_paise: discountPaise,
+          campaigns: discount!.campaigns,
+        }
+      : {}),
   }, cart.hash, TTL.PAYMENT);
 }
 
@@ -258,7 +284,7 @@ export async function requestCheckout(paymentMandateId: string, origin?: string)
     return { status: "rejected", reason: "unknown_payment_mandate", detail: {} };
   }
 
-  const payload = JSON.parse(payment.payload_json) as { cart_mandate_id: string };
+  const payload = JSON.parse(payment.payload_json) as { cart_mandate_id: string; amount_paise?: number };
   const chain = await verifyChain(
     await grandparentOf(payment),
     payload.cart_mandate_id,
@@ -283,10 +309,13 @@ export async function requestCheckout(paymentMandateId: string, origin?: string)
   const agentId = String(sessionRes.rows[0]?.agent_id ?? "unknown");
 
   const cartPayload = JSON.parse((await getMandate(payload.cart_mandate_id))!.payload_json) as { total_paise: number; categories: string[] };
+  // The gate evaluates what will actually MOVE: the signed (post-discount)
+  // mandate amount, not the pre-discount cart total.
+  const chargePaise = payload.amount_paise ?? cartPayload.total_paise;
   const ctx: SpendContext = {
     agent_id: agentId,
     ...(await spendContext(agentId)),
-    cart_total_paise: cartPayload.total_paise,
+    cart_total_paise: chargePaise,
     cart_categories: cartPayload.categories,
   };
 
@@ -297,11 +326,11 @@ export async function requestCheckout(paymentMandateId: string, origin?: string)
     args: [randomUUID(), paymentMandateId, verdict.outcome, JSON.stringify(verdict.reasons)],
   });
   await publish({ type: `policy.${verdict.outcome}`, session_id: payment.session_id,
-                  payload: { mandate_id: paymentMandateId, amount_paise: cartPayload.total_paise,
+                  payload: { mandate_id: paymentMandateId, amount_paise: chargePaise,
                              outcome: verdict.outcome, reasons: verdict.reasons } });
 
   if (verdict.outcome === "deny") {
-    return { status: "denied", reasons: verdict.reasons, amount_paise: cartPayload.total_paise };
+    return { status: "denied", reasons: verdict.reasons, amount_paise: chargePaise };
   }
 
   if (verdict.outcome === "gate") {
@@ -312,8 +341,8 @@ export async function requestCheckout(paymentMandateId: string, origin?: string)
     });
     await publish({ type: "approval.requested", session_id: payment.session_id,
                     payload: { approval_id: approvalId, mandate_id: paymentMandateId,
-                               amount_paise: cartPayload.total_paise, reasons: verdict.reasons } });
-    return { status: "needs_approval", approval_id: approvalId, reasons: verdict.reasons, amount_paise: cartPayload.total_paise };
+                               amount_paise: chargePaise, reasons: verdict.reasons } });
+    return { status: "needs_approval", approval_id: approvalId, reasons: verdict.reasons, amount_paise: chargePaise };
   }
 
   return issueRail(paymentMandateId, payment.session_id, origin);

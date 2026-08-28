@@ -138,6 +138,7 @@ type CheckoutDetails = {
   payment_row_id: string;
   rzp_order_id: string;
   amount_paise: number;
+  discount_paise?: number;
   cart_items: { sku: string; title: string; qty: number; unit_price_paise: number; line_total_paise: number }[];
   agent_message: string;
   session_id: string;
@@ -188,6 +189,7 @@ export function Street() {
           payment_row_id: String(e.payload?.payment_row_id ?? ""),
           rzp_order_id: String(e.payload?.rzp_order_id ?? ""),
           amount_paise: Number(e.payload?.amount_paise ?? 0),
+          discount_paise: e.payload?.discount_paise != null ? Number(e.payload.discount_paise) : undefined,
           cart_items: (e.payload?.cart_items as any[]) ?? [],
           agent_message: String(e.payload?.agent_message ?? ""),
           session_id: String(e.session_id ?? ""),

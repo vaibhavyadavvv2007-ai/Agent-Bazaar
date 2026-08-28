@@ -64,7 +64,7 @@ npx tsx scripts/demo.ts                  # full story incl. real payments (needs
 
 | Provider | Model | Speed | Best for |
 |---|---|---|---|
-| **Claude** | `claude-3-haiku-20240307` | ~2-3s per turn | Demo video, complex reasoning, multi-item carts |
+| **Claude** | `claude-haiku-4-5` | ~2-3s per turn | Demo video, complex reasoning, multi-item carts |
 | **Groq** | `openai/gpt-oss-120b` | ~1-2s per turn | Rapid testing, simple purchases, fast iteration |
 | **MCP** | Any MCP client | Varies | Claude Desktop, Cursor — point at `/api/mcp` |
 
