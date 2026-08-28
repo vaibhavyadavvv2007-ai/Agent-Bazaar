@@ -11,8 +11,8 @@ export const runtime = "nodejs";
 /**
  * OUR MCP server — the protocol-level front door.
  *
- * Any MCP-capable client (Cursor, Gemini CLI, ChatGPT dev-mode,
- * Cursor, …) can point at `/api/mcp` and shop the bazaar with the SAME
+ * Any MCP-capable client (Claude Desktop, Cursor, ChatGPT dev-mode,
+ * …) can point at `/api/mcp` and shop the bazaar with the SAME
  * StoreTools the harnesses use — same mandates, same policy gate, same
  * ledger. Stateless transport: every call is self-contained, sessions are
  * explicit via `start_shopping_session`.

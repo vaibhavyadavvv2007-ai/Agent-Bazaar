@@ -66,7 +66,7 @@ npx tsx scripts/demo.ts                  # full story incl. real payments (needs
 |---|---|---|---|
 | **Claude** | `claude-3-5-sonnet-latest` | ~3-5s per turn | Demo video, complex reasoning, multi-item carts |
 | **Groq** | `openai/gpt-oss-120b` | ~1-2s per turn | Rapid testing, simple purchases, fast iteration |
-| **MCP** | Any MCP client | Varies | Claude Desktop, Cursor, Gemini CLI — point at `/api/mcp` |
+| **MCP** | Any MCP client | Varies | Claude Desktop, Cursor — point at `/api/mcp` |
 
 All three share the **same** shopping harness (`lib/agents/harness.ts`), the **same** tool
 implementation (`lib/tools/store.ts`), and the **same** policy engine. The only difference is
