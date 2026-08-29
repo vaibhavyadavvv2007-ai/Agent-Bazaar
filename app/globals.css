@@ -212,10 +212,12 @@ body {
 
 /* ── Active nav: the open gazette section ────────────────────── */
 .nav-link {
+  display: inline-block;
   text-decoration: none;
   color: var(--ink-soft);
   border-bottom: 2px solid transparent;
-  padding-bottom: 1px;
+  /* WCAG 2.2 target size: inline nav links still need a 24px hit area. */
+  padding: 5px 1px 3px;
   transition: color 140ms ease-out, border-color 140ms ease-out;
 }
 .nav-link:hover { color: var(--rule-blue); }
@@ -475,6 +477,8 @@ body {
 .dispatch-input:focus {
   outline: none;
   border-color: var(--seal);
+  /* outline:none must not leave a weak indicator — ring the field. */
+  box-shadow: 0 0 0 1.5px var(--seal);
 }
 
 .dispatch-input:disabled {
@@ -546,7 +550,9 @@ body {
   .typeset-in,
   .bell-swing,
   .dispatch-preset,
-  .dispatch-backdrop {
+  .dispatch-backdrop,
+  .agent-pulse,
+  .animate-pulse {
     animation: none;
   }
   .dispatch-drawer {
@@ -554,5 +560,7 @@ body {
   }
   * {
     transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }

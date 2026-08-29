@@ -79,7 +79,7 @@ export default function AgentTranscript() {
         <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scroll-column">
           <button
             onClick={() => setFilterSession(null)}
-            className={`press font-clause text-[11px] uppercase px-2 py-0.5 border ${!filterSession ? "border-(--ink) bg-(--paper-deep) text-(--ink)" : "border-(--paper-edge) bg-transparent text-(--ink-soft)"}`}
+            className={`press font-clause text-[11px] uppercase px-2.5 py-1 border ${!filterSession ? "border-(--ink) bg-(--paper-deep) text-(--ink)" : "border-(--paper-edge) bg-transparent text-(--ink-soft)"}`}
           >
             All Agents
           </button>
@@ -87,7 +87,7 @@ export default function AgentTranscript() {
             <button
               key={sid}
               onClick={() => setFilterSession(sid)}
-              className={`press font-clause text-[11px] px-2 py-0.5 border ${filterSession === sid ? "border-(--ink) bg-(--paper-deep) text-(--ink)" : "border-(--paper-edge) bg-transparent text-(--ink-soft)"}`}
+              className={`press font-clause text-[11px] px-2.5 py-1 border ${filterSession === sid ? "border-(--ink) bg-(--paper-deep) text-(--ink)" : "border-(--paper-edge) bg-transparent text-(--ink-soft)"}`}
               style={{ borderBottomColor: hueFor(sid), borderBottomWidth: filterSession === sid ? '2px' : '1px' }}
             >
               {shortName(sid)}

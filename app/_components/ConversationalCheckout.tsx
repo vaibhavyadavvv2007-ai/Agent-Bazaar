@@ -183,7 +183,7 @@ export default function ConversationalCheckout({
           {phase === "review" && (
             <button
               onClick={onClose}
-              className="press border border-(--paper-edge) px-2 py-0.5 font-clause text-[11px] text-(--ink-soft) hover:border-(--ink)"
+              className="press border border-(--paper-edge) px-2.5 py-1 font-clause text-[11px] text-(--ink-soft) hover:border-(--ink)"
               aria-label="Close"
             >
               ESC
