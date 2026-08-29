@@ -146,10 +146,20 @@ export default function DispatchDrawer() {
       try {
         data = JSON.parse(raw) as RunResult;
       } catch {
-        data = {
-          error: `Agent run failed (HTTP ${res.status})`,
-          detail: raw.slice(0, 300),
-        };
+        // A 504 means the serverless function was cut mid-session, not that
+        // the agent failed — mandates, checkout and events already persisted.
+        // The notice board above is the source of truth.
+        data =
+          res.status === 504
+            ? {
+                error: "Session ran long — the connection was cut",
+                detail:
+                  "The agent's shopping may still have completed. Check the notice board above: if the checkout modal or a summons appeared, the session succeeded.",
+              }
+            : {
+                error: `Agent run failed (HTTP ${res.status})`,
+                detail: raw.slice(0, 300),
+              };
       }
       setResult(data);
       setState(data.error ? "error" : "done");

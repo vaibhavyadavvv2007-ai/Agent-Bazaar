@@ -85,6 +85,7 @@ export async function runAgentSession(
   const messages: AdapterMessage[] = [{ role: "user", content: cfg.task }];
 
   let turn = 0;
+  let settledTurn = -1; // turn on which request_checkout reached a terminal state
   for (; turn < MAX_TURNS; turn++) {
     const response = await callModel({
       system: systemPrompt(cfg),
@@ -131,13 +132,36 @@ export async function runAgentSession(
         payload: { turn, args: compact(use.input), result: compact(result) },
       });
       results.push({ kind: "tool_result", tool_use_id: use.id, tool_name: use.name, content: JSON.stringify(compact(result)) });
+
+      // Once checkout issues / gates / denies, the money path is settled.
+      // The agent gets exactly ONE more turn to report, then the session
+      // ends — trailing turns are the main source of serverless timeouts.
+      if (
+        use.name === "request_checkout" &&
+        result && typeof result === "object" && "status" in result &&
+        ["issued", "needs_approval", "denied"].includes(String((result as { status: unknown }).status))
+      ) {
+        settledTurn = turn;
+      }
     }
 
     messages.push({ role: "assistant", content: response.rawAssistantBlocks });
     messages.push({ role: "user", content: results });
+
+    if (settledTurn >= 0 && turn > settledTurn) break; // report delivered — stop
   }
 
-  const summary = [...transcript].reverse().find((t) => t.role === "assistant" && t.text)?.text ?? "(no summary)";
+  const checkoutNote = [...transcript].reverse().find(
+    (t) => t.role === "tool" && t.tool_name === "request_checkout"
+  )?.tool_result;
+  const guidance =
+    checkoutNote && typeof checkoutNote === "object" && "guidance" in checkoutNote
+      ? String((checkoutNote as { guidance: unknown }).guidance)
+      : undefined;
+  const summary =
+    [...transcript].reverse().find((t) => t.role === "assistant" && t.text)?.text ??
+    guidance ??
+    "(no summary)";
   await db().execute({ sql: "UPDATE sessions SET status='done' WHERE id=?", args: [sessionId] });
   await publish({ type: "agent.left", session_id: sessionId, payload: { turns: turn + 1 } });
 
