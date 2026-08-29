@@ -88,13 +88,39 @@ export function groqAdapter(model: string = "openai/gpt-oss-120b"): AdapterCall 
       ...groqMessages,
     ];
 
-    const response = await client.chat.completions.create({
-      model,
-      messages: finalMessages,
-      tools: groqTools.length > 0 ? groqTools : undefined,
-      temperature: 0,
-      max_tokens: 2048,
-    });
+    const request = () =>
+      client.chat.completions.create({
+        model,
+        messages: finalMessages,
+        tools: groqTools.length > 0 ? groqTools : undefined,
+        temperature: 0,
+        max_tokens: 2048,
+      });
+
+    let response;
+    try {
+      response = await request();
+    } catch (e) {
+      // gpt-oss occasionally mis-remembers a tool name (e.g. "list_campaign"
+      // for "list_campaigns"). Groq validates the model's own output
+      // server-side and 400s the whole request, so the malformed call never
+      // reaches the harness — the session would just die. Parse the attempted
+      // name, tell the model the right one, and retry exactly once.
+      const attempted = unknownToolName(e);
+      if (!attempted) throw e;
+      const correct = closestToolName(
+        attempted,
+        tools.map((t) => t.name)
+      );
+      finalMessages.push({
+        role: "user",
+        content:
+          `[system notice] Your tool call "${attempted}" failed validation: no such tool exists.` +
+          (correct ? ` The correct tool name is "${correct}".` : "") +
+          ` Only call tools from the provided tools list, using exact names.`,
+      });
+      response = await request();
+    }
 
     const msg = response.choices[0].message;
     const blocks: AssistantBlock[] = [];
@@ -124,4 +150,23 @@ export function groqAdapter(model: string = "openai/gpt-oss-120b"): AdapterCall 
 
     return { blocks, rawAssistantBlocks: blocks };
   };
+}
+
+/** Extracts the hallucinated tool name from Groq's tool-call validation 400. */
+export function unknownToolName(e: unknown): string | undefined {
+  const msg = e instanceof Error ? e.message : String(e);
+  const m = msg.match(/attempted to call tool ['"]([^'"]+)['"] which was not in request\.tools/);
+  return m?.[1];
+}
+
+/** Best-effort match of a hallucinated tool name to a real one. */
+export function closestToolName(attempted: string, names: string[]): string | undefined {
+  const norm = (s: string) => s.toLowerCase().replace(/[_\s-]+/g, "");
+  const singular = (s: string) => norm(s).replace(/s$/, "");
+  return (
+    names.find((n) => norm(n) === norm(attempted)) ??
+    names.find((n) => singular(n) === singular(attempted)) ??
+    names.find((n) => norm(n).startsWith(norm(attempted))) ??
+    names.find((n) => norm(n).includes(norm(attempted)))
+  );
 }
