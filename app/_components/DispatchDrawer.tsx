@@ -138,7 +138,19 @@ export default function DispatchDrawer() {
 
       setState("running");
 
-      const data = (await res.json()) as RunResult;
+      /* The platform (Vercel timeout, cold-start crash) can answer with a
+         plain-text error page instead of our JSON — parse defensively so
+         the shopkeeper sees the real message, not a JSON SyntaxError. */
+      const raw = await res.text();
+      let data: RunResult;
+      try {
+        data = JSON.parse(raw) as RunResult;
+      } catch {
+        data = {
+          error: `Agent run failed (HTTP ${res.status})`,
+          detail: raw.slice(0, 300),
+        };
+      }
       setResult(data);
       setState(data.error ? "error" : "done");
     } catch (e) {
