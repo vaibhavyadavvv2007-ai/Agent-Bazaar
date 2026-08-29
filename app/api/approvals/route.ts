@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { publish } from "@/lib/events/bus";
 import { issueRailForMandate } from "@/lib/server";
+import { publishCheckoutConversational, listOpenCheckouts } from "@/lib/checkout/conversational";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
  *        approved → rail issuance proceeds for the parked mandate
  *        rejected → the agent receives a structured human refusal
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   const res = await db().execute(`
     SELECT a.id, a.mandate_id, a.reason, a.requested_at,
            m.session_id, m.hash AS payment_hash,
@@ -35,7 +36,14 @@ export async function GET() {
     requested_at: String(r.requested_at),
   }));
 
-  return NextResponse.json({ count: queue.length, queue });
+  // Checkouts that issued (gate approved) but are still unpaid — the shopkeeper
+  // needs a checkout button for these even if the approval happened elsewhere.
+  const open_checkouts = await listOpenCheckouts(req.nextUrl.origin);
+
+  return NextResponse.json(
+    { count: queue.length, queue, open_checkouts },
+    { headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" } }
+  );
 }
 
 type DecisionBody = { approval_id?: string; decision?: "approved" | "rejected"; decided_by?: string };
@@ -77,7 +85,33 @@ export async function POST(req: NextRequest) {
 
   if (body.decision === "approved") {
     // Human consent recorded — the gate opens and the rail issues.
-    const result = await issueRailForMandate(String(row.mandate_id), req.nextUrl.origin);
+    // NOTE: issueRailForMandate's signature is (mandateId, sessionId, origin) —
+    // the request origin must go in the THIRD slot or the checkout URL falls
+    // back to env vars / localhost.
+    const result = await issueRailForMandate(String(row.mandate_id), undefined, req.nextUrl.origin);
+
+    // The bazaar-floor checkout modal (the pay button) opens ONLY on this
+    // event — the immediate-issue path publishes it inside request_checkout.
+    // Gated carts (> policy limit) must fire it here too, or the shopkeeper
+    // approves a cart nobody can ever pay for.
+    if (result.status === "issued" && result.payment_row_id) {
+      const payRes = await db().execute({
+        sql: "SELECT rzp_order_id FROM payments WHERE id = ?",
+        args: [result.payment_row_id],
+      });
+      try {
+        await publishCheckoutConversational({
+          paymentMandateId: String(row.mandate_id),
+          paymentRowId: result.payment_row_id,
+          rzpOrderId: String(payRes.rows[0]?.rzp_order_id ?? ""),
+          amountPaise: result.amount_paise,
+        });
+      } catch (e) {
+        // Event publish must never fail the approval itself.
+        console.error("[approvals] conversational checkout event failed:", e);
+      }
+    }
+
     return NextResponse.json({ decision: "approved", rail: result }, { status: result.status === "issued" ? 200 : 500 });
   }
 
