@@ -126,9 +126,16 @@ type Agent = {
 
 type Receipt = {
   key: string;
-  lines: string[];
-  stamp?: { text: string; tone: "good" | "warn" | "bad" };
-  tone: string;
+  /** Dominant line — WHAT happened. */
+  event: string;
+  /** The money involved, if any. Second in the hierarchy. */
+  amount?: string;
+  /** Secondary lines: reasons, attempts, context. */
+  detail: string[];
+  /** Technical metadata: hashes, order ids. Weakest ink. */
+  meta: string[];
+  /** Optional upright status plate (color + word, never color alone). */
+  plate?: { text: string; tone: "ok" | "warn" | "bad" | "info" };
   ago: string;
 };
 
@@ -182,7 +189,11 @@ export function Street() {
       // Sounds and Toasts
       if (e.type === "policy.gate") {
         playSound("bell");
-        toast("Summons", { description: "An agent's transaction was paused for your review." });
+        toast("Summons — human review required", {
+          description: "An agent's transaction was paused for your review.",
+          className: "font-clause text-[12px] border-2 border-(--warn) bg-(--paper) text-(--ink) rounded-none shadow-[0_4px_16px_rgba(28,26,23,0.18)] p-3",
+          style: { fontFamily: "'Courier Prime', monospace" },
+        });
       } else      if (e.type === "payment.checkout_conversational") {
         playSound("bell");
         const details: CheckoutDetails = {
@@ -231,7 +242,8 @@ export function Street() {
           <span className="font-clause text-[11px] text-(--ink-soft)">every notice is a real agent session · every clause a signed mandate</span>
         </header>
 
-        <svg viewBox={`0 0 ${W} 420`} className="min-w-[720px]" role="img" aria-label="The bazaar street, drawn as a gazette illustration: stalls, lamps and shopping agents">
+        <div className="scroll-column overflow-x-auto">
+          <svg viewBox={`0 0 ${W} 420`} className="min-w-[720px]" role="img" aria-label="The bazaar street, drawn as a gazette illustration: stalls, lamps and shopping agents">
           {/* paper grid: faint ruled columns like a printed plate */}
           <defs>
             <pattern id="plate" width="52" height="52" patternUnits="userSpaceOnUse">
@@ -248,15 +260,16 @@ export function Street() {
               <path d={`M ${x} 146 q 4 10 0 18`} stroke="var(--ink)" strokeWidth="1.5" fill="none" />
               <rect x={x - 8} y="162" width="16" height="26" rx="3" fill="var(--paper)" stroke="var(--ink)" strokeWidth="1.5" />
               <path d={`M ${x - 8} 170 h16 M ${x - 5} 176 h10`} stroke="var(--ink)" strokeWidth="1" />
-              <circle cx={x} cy="194" r="2.2" fill="var(--seal)" />
+              <circle cx={x} cy="194" r="2.2" fill="var(--rust)" />
             </g>
           ))}
 
           {/* stalls — ink-line shopfronts with striped awnings */}
           {products.map((p) => {
             const s = stallPos(p);
+            const out = p.stock <= 0;
             return (
-              <g key={p.id} transform={`translate(${s.x}, ${s.y})`}>
+              <g key={p.id} transform={`translate(${s.x}, ${s.y})`} opacity={out ? 0.55 : 1}>
                 <rect width="132" height="96" rx="2" fill="var(--paper)" stroke="var(--ink)" strokeWidth="1.5" />
                 <path
                   d="M0 16 h132 M8 16 l10 -12 h96 l10 12"
@@ -264,16 +277,21 @@ export function Street() {
                   strokeWidth="1.5"
                   fill="none"
                 />
-                <path d="M0 22 h132" stroke="var(--seal)" strokeWidth="2" opacity="0.85" />
+                {/* Awning stripe — NON-semantic rust accent (was seal red,
+                    which read as "danger" on every card). */}
+                <path d="M0 22 h132" stroke="var(--rust)" strokeWidth="2" opacity="0.7" />
                 <text x="10" y="36" fontSize="9" fill="var(--ink-soft)" fontWeight="700" className="font-clause" letterSpacing="0.08em">{CATEGORY_LABEL[p.category] ?? "STALL"}</text>
-                <text x="10" y="52" fontSize="11.5" fill="var(--ink)" fontWeight="600" className="font-masthead" style={{ fontSize: 11 }}>
+                {/* Product name — dominant */}
+                <text x="10" y="52" fontSize="11.5" fill="var(--ink)" fontWeight="700" className="font-masthead" style={{ fontSize: 11.5 }}>
                   {p.title.length > 18 ? `${p.title.slice(0, 17)}…` : p.title}
                 </text>
-                <text x="10" y="68" fontSize="11" fill="var(--seal)" className="font-clause">
+                {/* Price — second in hierarchy, ink (not red) */}
+                <text x="10" y="68" fontSize="11" fill="var(--ink)" fontWeight="700" className="font-clause digits" style={{ fontSize: 11 }}>
                   {rupees(p.price_paise)}
                 </text>
-                <text x="10" y="86" fontSize="8.5" fill="var(--ink-soft)" className="font-clause">
-                  {p.sku} · stock {p.stock}
+                {/* Stock + SKU — tertiary */}
+                <text x="10" y="86" fontSize="9" fill="var(--ink-faint)" className="font-clause">
+                  {out ? "OUT OF STOCK" : `STOCK ${p.stock}`} · {p.sku}
                 </text>
               </g>
             );
@@ -306,35 +324,41 @@ export function Street() {
               The street is quiet. Send an agent: POST /api/agents/run and it will be notified here.
             </text>
           )}
-        </svg>
+          </svg>
+        </div>
 
         {/* ══ SUMMONS — the gate wants a human ══ */}
         {bell && (
-          <div className="absolute right-4 top-12 w-72 border-2 border-(--seal) bg-(--paper) p-3 shadow-[0_10px_28px_rgba(28,26,23,0.22)]">
+          <div className="absolute right-4 top-12 w-72 border-2 border-(--warn) bg-(--paper) p-4 shadow-[0_10px_28px_rgba(28,26,23,0.22)]" role="alertdialog" aria-label="Summons: approval required">
             <div className="flex items-center gap-2">
               <svg viewBox="0 0 24 24" className="bell-swing inline-block h-6 w-6" aria-hidden="true">
                 <path
                   d="M12 3c-3.2 0-5 2.4-5 5.5V13l-1.8 2.6c-.3.5 0 1.1.6 1.1h12.4c.6 0 .9-.6.6-1.1L17 13V8.5C17 5.4 15.2 3 12 3Z"
                   fill="var(--paper)"
-                  stroke="var(--seal)"
+                  stroke="var(--warn)"
                   strokeWidth="1.7"
                   strokeLinejoin="round"
                 />
-                <path d="M10 19a2 2 0 0 0 4 0" fill="none" stroke="var(--seal)" strokeWidth="1.7" strokeLinecap="round" />
+                <path d="M10 19a2 2 0 0 0 4 0" fill="none" stroke="var(--warn)" strokeWidth="1.7" strokeLinecap="round" />
               </svg>
-              <span className="font-masthead text-lg uppercase tracking-wide text-(--seal)">Summons</span>
+              <span className="font-masthead text-lg uppercase tracking-wide text-(--warn-ink)">Summons</span>
             </div>
-            <div className="mt-1 font-clause text-sm">{rupees(bell.amount)}</div>
-            <div className="mt-0.5 font-clause text-[11px] text-(--ink-soft)">{bell.reason}</div>
+            {/* The amount is the decision input — make it the dominant figure. */}
+            <div className="digits mt-2 text-3xl text-(--ink)">{rupees(bell.amount)}</div>
+            <div className="font-body mt-1 text-[13px] text-(--ink-soft)">{bell.reason}</div>
+            <div className="plate plate-warn mt-2 text-[11px]">
+              <span className="dot" aria-hidden="true" />
+              A human must decide
+            </div>
             <div className="mt-3 flex gap-2">
-              <button onClick={() => decide("approved")} className="press flex-1 border border-(--henna) bg-(--henna)/10 px-3 py-1.5 font-clause text-sm font-bold text-(--henna) hover:bg-(--henna)/20">
+              <button onClick={() => decide("approved")} className="press flex-1 border-[1.5px] border-(--ok) bg-(--ok-bg) px-3 py-2 font-clause text-sm font-bold text-(--ok-ink) hover:bg-(--ok)/20 disabled:opacity-50">
                 Allow entry
               </button>
-              <button onClick={() => decide("rejected")} className="press flex-1 border border-(--seal) px-3 py-1.5 font-clause text-sm font-bold text-(--seal) hover:bg-(--seal)/10">
+              <button onClick={() => decide("rejected")} className="press flex-1 border-[1.5px] border-(--bad) bg-transparent px-3 py-2 font-clause text-sm font-bold text-(--bad-ink) hover:bg-(--bad-bg) disabled:opacity-50">
                 Refuse
               </button>
             </div>
-            <div className="fig mt-1.5 text-center"><span className="pointer" aria-hidden="true" />your latency is being recorded</div>
+            <div className="fig mt-2 text-center"><span className="pointer" aria-hidden="true" />your latency is being recorded</div>
           </div>
         )}
         {bellNote && <div className="absolute bottom-3 left-4 border border-(--ink) bg-(--paper) px-3 py-1.5 font-clause text-xs">{bellNote}</div>}
@@ -396,7 +420,7 @@ export function BillBook() {
         <span className="font-clause text-[11px] uppercase tracking-[0.14em] text-(--ink-soft)">append-only</span>
       </header>
       <div className="security-thread-band" aria-hidden="true" />
-      <ol className="scroll-column max-h-[600px] space-y-2 overflow-y-auto p-1 pt-2">
+      <ol className="scroll-column max-h-[600px] space-y-2 overflow-y-auto p-1 pt-2" role="log" aria-live="polite" aria-label="Numbered notifications">
         {receipts.length === 0 && (
           <li className="border border-dashed border-(--paper-edge) p-4 text-center font-clause text-xs text-(--ink-soft)">
             No notifications yet. When agents spend, every mandate is notified here:
@@ -404,23 +428,43 @@ export function BillBook() {
           </li>
         )}
         {receipts.map((r, idx) => (
-          <li key={r.key} className="typeset-in border border-(--paper-edge) bg-(--bazaar-panel) px-3 py-2 font-clause text-[11px]" style={{ animationDelay: `${idx * 60}ms` }}>
-            <div className="flex items-baseline justify-between">
-              <span className="font-bold">No. {String(receipts.length - idx).padStart(3, "0")}</span>
-              <span className="fig text-(--ink-faint)">{r.ago}</span>
+          <li
+            key={r.key}
+            className={`typeset-in border bg-(--bazaar-panel) px-3 py-2 ${
+              r.plate?.tone === "ok"
+                ? "border-l-[3px] border-l-(--ok) border-y-(--paper-edge) border-r-(--paper-edge)"
+                : r.plate?.tone === "warn"
+                  ? "border-l-[3px] border-l-(--warn) border-y-(--paper-edge) border-r-(--paper-edge)"
+                  : r.plate?.tone === "bad"
+                    ? "border-l-[3px] border-l-(--bad) border-y-(--paper-edge) border-r-(--paper-edge)"
+                    : "border-(--paper-edge)"
+            }`}
+            style={{ animationDelay: `${idx * 60}ms` }}
+          >
+            {/* Row 1 — filing number + timestamp (technical, small) */}
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="font-clause text-[11px] font-bold text-(--ink-soft)">No. {String(receipts.length - idx).padStart(3, "0")}</span>
+              <time className="font-clause text-[11px] tabular-nums text-(--ink-faint)">{r.ago}</time>
             </div>
-            {r.lines.filter(Boolean).map((l, i) => (
-              <div key={i} className={i === 0 ? "font-semibold" : "text-(--ink-soft)"}>{l}</div>
+            {/* Row 2 — WHAT happened (dominant) */}
+            <div className="font-masthead mt-0.5 text-[15px] leading-snug text-(--ink)">
+              {r.event}
+              {r.plate && (
+                <span className={`plate ml-2 align-middle text-[11px] plate-${r.plate.tone === "ok" ? "ok" : r.plate.tone === "warn" ? "warn" : r.plate.tone === "bad" ? "bad" : "info"}`}>
+                  {r.plate.text}
+                </span>
+              )}
+            </div>
+            {/* Row 3 — the money (secondary-dominant) */}
+            {r.amount && <div className="digits mt-0.5 text-[15px] text-(--ink)">{r.amount}</div>}
+            {/* Row 4 — reasons and context (body ink) */}
+            {r.detail.filter(Boolean).map((d, i) => (
+              <div key={i} className="font-body mt-0.5 text-[13px] text-(--ink-soft)">{d}</div>
             ))}
-            {r.stamp && (
-              <div
-                className={`seal mt-1.5 text-[11px] ${
-                  r.stamp.tone === "good" ? "seal-green" : r.stamp.tone === "warn" ? "seal-gold" : "seal-red"
-                }`}
-              >
-                {r.stamp.text}
-              </div>
-            )}
+            {/* Row 5 — hashes, order ids (weakest ink, mono) */}
+            {r.meta.filter(Boolean).map((m, i) => (
+              <div key={i} className="fig mt-0.5">{m}</div>
+            ))}
           </li>
         ))}
       </ol>
@@ -511,33 +555,33 @@ function eventToReceipt(e: LiveEvent): Receipt | null {
   const paiseLine = amt ? rupees(amt) : "";
   switch (e.type) {
     case "mandate.signed.intent":
-      return { key: e.id!, lines: [`INTENT · user-signed`, `bound ${rupees(Number(e.payload?.max_amount_paise ?? e.payload?.amount_paise ?? 0))}`, `hash ${short(e.payload)}`], tone: "", ago };
+      return { key: e.id!, event: "Intent mandate signed", detail: ["bound by the user"], meta: [`max ${rupees(Number(e.payload?.max_amount_paise ?? e.payload?.amount_paise ?? 0))}`, `hash ${short(e.payload)}`], ago };
     case "mandate.signed.cart":
-      return { key: e.id!, lines: [`CART · agent-signed`, `hash ${short(e.payload)}`], tone: "", ago };
+      return { key: e.id!, event: "Cart mandate signed", detail: ["committed by the agent"], meta: [`hash ${short(e.payload)}`], ago };
     case "mandate.signed.payment":
-      return { key: e.id!, lines: [`PAYMENT · merchant-signed`, `hash ${short(e.payload)}`], tone: "", ago };
+      return { key: e.id!, event: "Payment mandate signed", detail: ["signed by the merchant"], meta: [`hash ${short(e.payload)}`], ago };
     case "policy.allow":
-      return { key: e.id!, lines: [`policy · ALLOW`, paiseLine], stamp: { text: "allowed", tone: "good" }, tone: "", ago };
+      return { key: e.id!, event: "Policy allowed", amount: paiseLine, detail: [], meta: [], plate: { text: "allowed", tone: "ok" }, ago };
     case "policy.gate":
-      return { key: e.id!, lines: [`policy · GATE → human`, paiseLine, firstReason(e) ?? ""], stamp: { text: "held", tone: "warn" }, tone: "", ago };
+      return { key: e.id!, event: "Held for human review", amount: paiseLine, detail: [firstReason(e) ?? ""], meta: [], plate: { text: "held", tone: "warn" }, ago };
     case "policy.deny":
-      return { key: e.id!, lines: [`policy · DENY`, paiseLine, firstReason(e) ?? ""], stamp: { text: "denied", tone: "bad" }, tone: "", ago };
+      return { key: e.id!, event: "Denied by policy", amount: paiseLine, detail: [firstReason(e) ?? ""], meta: [], plate: { text: "denied", tone: "bad" }, ago };
     case "payment.checkout_open":
-      return { key: e.id!, lines: [`rails · checkout open`, `attempt ${String(e.payload?.attempt ?? 1)} · ${paiseLine}`, `order ${shortId(String(e.payload?.rzp_order_id ?? ""))}`], tone: "", ago };
+      return { key: e.id!, event: "Checkout open", amount: paiseLine, detail: [`attempt ${String(e.payload?.attempt ?? 1)}`], meta: [`order ${shortId(String(e.payload?.rzp_order_id ?? ""))}`], ago };
     case "payment.captured":
-      return { key: e.id!, lines: [`PAYMENT CAPTURED`, paiseLine, `order ${shortId(String(e.payload?.rzp_order_id ?? ""))}`], stamp: { text: "captured", tone: "good" }, tone: "", ago };
+      return { key: e.id!, event: "Payment captured", amount: paiseLine, detail: [], meta: [`order ${shortId(String(e.payload?.rzp_order_id ?? ""))}`], plate: { text: "captured", tone: "ok" }, ago };
     case "payment.failed":
-      return { key: e.id!, lines: [`payment failed`, paiseLine, String(e.payload?.failure_reason ?? "").slice(0, 46)], stamp: { text: "failed", tone: "bad" }, tone: "", ago };
+      return { key: e.id!, event: "Payment failed", amount: paiseLine, detail: [String(e.payload?.failure_reason ?? "").slice(0, 46)], meta: [], plate: { text: "failed", tone: "bad" }, ago };
     case "payment.recovered":
-      return { key: e.id!, lines: [`RECOVERY`, `earlier failure marked recovered`], stamp: { text: "recovered", tone: "good" }, tone: "", ago };
+      return { key: e.id!, event: "Failure recovered", detail: ["an earlier failed attempt was settled by a later capture"], meta: [], plate: { text: "recovered", tone: "ok" }, ago };
     case "suggestion.accepted":
-      return { key: e.id!, lines: [`upsell accepted`, `attach rate ↑`], tone: "", ago };
+      return { key: e.id!, event: "Suggestion accepted", detail: ["attach rate ↑"], meta: [], ago };
     case "campaign.applied":
-      return { key: e.id!, lines: [`campaign: ${e.payload?.campaign_name ?? "discount"}`, `${e.payload?.detail ?? ""}`], stamp: { text: "discount applied", tone: "good" }, tone: "", ago };
+      return { key: e.id!, event: "Campaign applied", amount: paiseLine, detail: [String(e.payload?.campaign_name ?? "discount"), String(e.payload?.detail ?? "")], meta: [], plate: { text: "discount", tone: "ok" }, ago };
     case "campaign.flash_expiring":
-      return { key: e.id!, lines: [`FLASH SALE EXPIRING`, `${e.payload?.campaign_name ?? ""} — ${e.payload?.seconds_left ?? 0}s remaining`], stamp: { text: "hurry!", tone: "warn" }, tone: "", ago };
+      return { key: e.id!, event: "Flash sale expiring", detail: [`${e.payload?.campaign_name ?? ""} — ${e.payload?.seconds_left ?? 0}s remaining`], meta: [], plate: { text: "hurry", tone: "warn" }, ago };
     case "campaign.flash_expired":
-      return { key: e.id!, lines: [`FLASH SALE ENDED`, `${e.payload?.campaign_name ?? ""} has expired`], stamp: { text: "expired", tone: "bad" }, tone: "", ago };
+      return { key: e.id!, event: "Flash sale ended", detail: [`${e.payload?.campaign_name ?? ""} has expired`], meta: [], plate: { text: "expired", tone: "bad" }, ago };
     default:
       return null;
   }

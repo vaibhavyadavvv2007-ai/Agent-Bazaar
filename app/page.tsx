@@ -4,6 +4,7 @@ import ShopkeeperHUD from "./_components/ShopkeeperHUD";
 import DispatchDrawer from "./_components/DispatchDrawer";
 import AgentTranscript from "./_components/AgentTranscript";
 import FlashSaleBannerWrapper from "./_components/FlashSaleBannerWrapper";
+import GazetteNav from "./_components/GazetteNav";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +20,15 @@ export default function Home() {
     <main className="mx-auto max-w-[1440px] px-5 pb-10 pt-5">
       {/* ── Masthead ─────────────────────────────────────────────── */}
       <header className="text-center">
-        <div className="flex items-baseline justify-between font-clause text-[11px] uppercase tracking-[0.18em] text-(--ink-soft)">
+        <div className="flex flex-wrap items-center justify-between gap-y-1 font-clause text-[11px] uppercase tracking-[0.18em] text-(--ink-soft)">
           <span>No. AB-2026-27/084</span>
           <span className="normal-case tracking-normal">Razorpay AI Buildathon, Track 01: Agentic Commerce</span>
-          <span>Test mode, ₹0·00</span>
+          {/* The mode plate: money-realness is the one status that must never
+              be missed. Amber stamp when no real rupees can move. */}
+          <span className="mode-stamp mode-stamp--test" role="status">
+            <span className="dot" aria-hidden="true" />
+            Test mode · ₹0·00
+          </span>
         </div>
         <div className="security-thread-band mx-auto mt-2 max-w-3xl" aria-hidden="true" />
         <h1 className="font-masthead mt-3 text-4xl uppercase tracking-[0.04em] sm:text-5xl">
@@ -34,24 +40,7 @@ export default function Home() {
         <div className="mx-auto mt-3 max-w-3xl">
           <div className="double-rule" />
         </div>
-        <nav className="mt-1.5 flex flex-wrap items-baseline justify-center gap-x-5 font-clause text-[11px] text-(--ink-soft)" aria-label="Gazette sections">
-          <span>{today}</span>
-          <a className="underline decoration-(--rule-blue) underline-offset-2 hover:text-(--rule-blue)" href="/dashboard">
-            Settlement summaries
-          </a>
-          <a className="underline decoration-(--rule-blue) underline-offset-2 hover:text-(--rule-blue)" href="/approvals">
-            Summonses
-          </a>
-          <a className="underline decoration-(--rule-blue) underline-offset-2 hover:text-(--rule-blue)" href="/api/catalog?format=agent">
-            Machine-readable catalog
-          </a>
-          <a className="underline decoration-(--rule-blue) underline-offset-2 hover:text-(--rule-blue)" href="/campaigns">
-            Campaigns
-          </a>
-          <a className="underline decoration-(--rule-blue) underline-offset-2 hover:text-(--rule-blue)" href="/receipts">
-            Audit Trail Receipts
-          </a>
-        </nav>
+        <GazetteNav today={today} />
       </header>
 
       {/* ── Flash Sale Banner ────────────────────────────────── */}

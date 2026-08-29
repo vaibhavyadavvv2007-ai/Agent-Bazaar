@@ -91,20 +91,20 @@ export default function Approvals() {
       )}
 
       {openCheckouts.length > 0 && (
-        <div className="mb-6 border-[1.5px] border-(--bazaar-ink) bg-(--bazaar-panel) p-4">
-          <p className="seal seal-green">rails issued · awaiting payment</p>
+        <div className="mb-6 border-[1.5px] border-(--warn) bg-(--bazaar-panel) p-4">
+          <p className="plate plate-warn"><span className="dot" aria-hidden="true" />Awaiting payment · rails issued</p>
           <ul className="mt-2 space-y-3">
             {openCheckouts.map((oc) => (
               <li key={oc.payment_row_id} className="flex flex-wrap items-center justify-between gap-3 border-b border-(--bazaar-line) pb-3 last:border-b-0 last:pb-0">
                 <div>
-                  <p className="font-masthead text-lg font-bold text-(--bazaar-ink)">{rupees(oc.amount_paise)}</p>
+                  <p className="digits font-masthead text-lg font-bold text-(--bazaar-ink)">{rupees(oc.amount_paise)}</p>
                   <p className="font-clause text-xs text-(--bazaar-ink-dim)">issued {oc.created_at}</p>
                 </div>
                 <a
                   href={oc.checkout_url}
                   target="_blank"
                   rel="noopener"
-                  className="border-[1.5px] border-(--bazaar-ink) bg-(--bazaar-ink) px-4 py-1.5 font-clause text-sm font-bold uppercase tracking-wider text-(--paper) hover:bg-(--bazaar-ink-dim)"
+                  className="border-[1.5px] border-(--ok) bg-(--ok) px-4 py-1.5 font-clause text-sm font-bold uppercase tracking-wider text-(--paper) hover:bg-(--ok-ink) hover:border-(--ok-ink)"
                 >
                   Open checkout →
                 </a>
@@ -126,7 +126,7 @@ export default function Approvals() {
           {queue.map((q) => (
             <li key={q.id} className="border-[1.5px] border-(--bazaar-ink) bg-(--bazaar-panel) p-4">
               <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-(--bazaar-line) pb-2">
-                <span className="font-masthead text-lg font-bold text-(--bazaar-ink)">{rupees(q.amount_paise)}</span>
+                <span className="digits font-masthead text-lg font-bold text-(--bazaar-ink)">{rupees(q.amount_paise)}</span>
                 <span className="font-clause text-xs text-(--bazaar-ink-dim)">rang at {q.requested_at}</span>
               </div>
               <ul className="mt-3 space-y-1 font-clause text-sm text-(--bazaar-ink)">
@@ -138,14 +138,14 @@ export default function Approvals() {
                 <button
                   onClick={() => decide(q.id, "approved")}
                   disabled={busy === q.id}
-                  className="border-[1.5px] border-(--bazaar-ink) bg-(--bazaar-ink) px-4 py-1.5 font-clause text-sm font-bold uppercase tracking-wider text-(--paper) hover:bg-(--bazaar-ink-dim) disabled:opacity-50"
+                  className="border-[1.5px] border-(--ok) bg-(--ok) px-4 py-1.5 font-clause text-sm font-bold uppercase tracking-wider text-(--paper) hover:bg-(--ok-ink) hover:border-(--ok-ink) disabled:opacity-50"
                 >
                   Approve &amp; open gate
                 </button>
                 <button
                   onClick={() => decide(q.id, "rejected")}
                   disabled={busy === q.id}
-                  className="border-[1.5px] border-(--bazaar-ink) bg-transparent px-4 py-1.5 font-clause text-sm font-bold uppercase tracking-wider text-(--bazaar-ink) hover:bg-(--bazaar-ink) hover:text-(--paper) disabled:opacity-50"
+                  className="border-[1.5px] border-(--bad) bg-transparent px-4 py-1.5 font-clause text-sm font-bold uppercase tracking-wider text-(--bad) hover:bg-(--bad) hover:text-(--paper) disabled:opacity-50"
                 >
                   Refuse
                 </button>

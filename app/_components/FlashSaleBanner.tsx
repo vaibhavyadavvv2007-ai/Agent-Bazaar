@@ -81,7 +81,7 @@ function FlashSaleCard({ sale, tick }: { sale: FlashSale; tick: number }) {
               {sale.name}
             </p>
           </div>
-          <span className="seal seal-red text-[10px]">EXPIRED</span>
+          <span className="seal seal-red text-[11px]">EXPIRED</span>
         </div>
       </div>
     );
@@ -91,9 +91,9 @@ function FlashSaleCard({ sale, tick }: { sale: FlashSale; tick: number }) {
     <div
       className={`border-2 px-3 py-2 ${
         urgency === "critical"
-          ? "border-(--seal) bg-(--seal)/8"
+          ? "border-(--warn) bg-(--warn)/8"
           : urgency === "high"
-            ? "border-(--seal) bg-(--paper)"
+            ? "border-(--warn) bg-(--paper)"
             : "border-(--ink) bg-(--paper)"
       }`}
     >
@@ -103,13 +103,13 @@ function FlashSaleCard({ sale, tick }: { sale: FlashSale; tick: number }) {
             <p className="font-masthead text-xs font-bold uppercase tracking-[0.08em]">
               {sale.name}
             </p>
-            <span className="seal seal-red text-[10px]">FLASH</span>
+            <span className="seal seal-red text-[11px]">FLASH</span>
           </div>
-          <p className="mt-0.5 font-clause text-[11px] text-(--ink-soft)">
+          <p className="mt-0.5 font-body text-[13px] leading-snug text-(--ink-soft)">
             {sale.description}
           </p>
           <p className="mt-0.5 font-clause text-[11px]">
-            <span className="font-bold text-(--seal)">
+            <span className="font-bold digits text-[13px]">
               {rupees(sale.config.sale_price_paise)}
             </span>
             <span className="ml-1 text-(--ink-soft)">
@@ -118,9 +118,10 @@ function FlashSaleCard({ sale, tick }: { sale: FlashSale; tick: number }) {
           </p>
         </div>
 
-        {/* Countdown — instrument digits */}
+        {/* Countdown — instrument digits. Time pressure is a warning, not a
+            failure, so urgency renders amber, never seal red. */}
         <div className="ml-3 text-right">
-          <div className={`digits text-lg ${urgency === "critical" ? "text-(--seal)" : urgency === "high" ? "text-(--seal)" : "text-(--ink)"}`}>
+          <div className={`digits text-lg ${urgency !== "normal" ? "text-(--warn)" : "text-(--ink)"}`}>
             {remaining.hours > 0 && (
               <>
                 {String(remaining.hours).padStart(2, "0").split("").map((d, i) => (
@@ -137,9 +138,9 @@ function FlashSaleCard({ sale, tick }: { sale: FlashSale; tick: number }) {
               <span key={`s${i}`} className={`digit ${urgency === "critical" ? "animate-pulse" : ""}`}>{d}</span>
             ))}
           </div>
-          <p className="font-clause text-[10px] uppercase tracking-wider text-(--ink-soft)">
+          <p className="font-clause text-[11px] uppercase tracking-wider text-(--ink-soft)">
             {urgency === "critical"
-              ? "ending soon!"
+              ? "ending soon"
               : urgency === "high"
                 ? "hurry"
                 : "remaining"}
@@ -151,11 +152,7 @@ function FlashSaleCard({ sale, tick }: { sale: FlashSale; tick: number }) {
       <div className="mt-2 h-1 w-full bg-(--paper-edge)">
         <div
           className={`h-full transition-all duration-1000 ${
-            urgency === "critical"
-              ? "bg-(--seal)"
-              : urgency === "high"
-                ? "bg-(--seal)"
-                : "bg-(--ink)"
+            urgency !== "normal" ? "bg-(--warn)" : "bg-(--ink)"
           }`}
           style={{
             width: `${Math.max(0, Math.min(100, (remaining.total / (5 * 60 * 1000)) * 100))}%`,

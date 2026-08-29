@@ -7,13 +7,14 @@ colors:
   paper-edge: "#d8cdb0"
   inner-page: "#faf6ea"
   ink: "#1c1a17"
-  ink-soft: "#57503f"
-  ink-faint: "#6f6552"
+  ink-soft: "#4a4334"
+  ink-faint: "#5d5442"
   seal: "#b3282d"
   seal-soft: "#c9564f"
   thread: "#b98a2f"
   rule-blue: "#2c4a7c"
   henna: "#1f6f43"
+  warn: "#8a5a12"
 typography:
   masthead:
     fontFamily: "Spectral, Georgia, serif"
@@ -29,6 +30,10 @@ typography:
     fontFamily: "Courier Prime, Courier New, monospace"
     fontSize: "11px"
     fontWeight: 400
+  clause-md:
+    fontFamily: "Courier Prime, Courier New, monospace"
+    fontSize: "12px"
+    fontWeight: 400
   clause-lg:
     fontFamily: "Courier Prime, Courier New, monospace"
     fontSize: "13px"
@@ -41,9 +46,9 @@ typography:
     textTransform: "uppercase"
   fig:
     fontFamily: "Courier Prime, Courier New, monospace"
-    fontSize: "10.5px"
+    fontSize: "11.5px"
     fontWeight: 400
-    lineHeight: 1.3
+    lineHeight: 1.35
   digits:
     fontFamily: "Courier Prime, Courier New, monospace"
     fontWeight: 700
@@ -104,14 +109,23 @@ One paper family, one ink family, four authority accents used sparingly.
 ### Tertiary
 - **Ledger-Rule Blue** (#2c4a7c): links and filing references, always underlined. Never for buttons.
 - **Henna Green** (#1f6f43): approval ink. ALLOWED / IN FORCE / captured states, always as a stamped word.
+- **Warning Amber** (#8a5a12): the pending/human-review ink — HELD, IN REVIEW, flash-sale urgency. Darker than thread gold so it stays readable at small sizes; never used decoratively.
 
 ### Neutral
 - **Gazette Paper** (#f4eeda): the page ground, with a faint two-direction weave.
 - **Inner Page** (#faf6ea): rule-box and clause-card fills.
 - **Folded Paper** (#ece4cb) and **Rule Edge** (#d8cdb0): inner fills and hairlines.
 - **Ink** (#1c1a17): primary text and all line-art strokes.
-- **Ink Soft** (#57503f): secondary text, ≥4.5:1 on paper.
-- **Ink Faint** (#6f6552): marginal Fig. annotations, 10.5px Courier Prime.
+- **Ink Soft** (#4a4334): secondary text, ≥6:1 on paper.
+- **Ink Faint** (#5d5442): marginal Fig. annotations, 11.5px Courier Prime.
+
+### Semantic state mapping
+Color communicates system state, never decoration:
+- **approved / captured / active / valid** → henna green
+- **pending / processing / human review required** → warning amber
+- **rejected / denied / failed / blocked** → seal red
+- **informational / machine events** → ink, rule-blue, thread gold (thread bands only)
+Every state is also carried by a stamped word or label — never color alone.
 
 ### Named Rules
 **The Published-Record Rule.** Nothing is rendered as live state that is not also in the ledger; the Notifications column seeds from the append-only record on load.

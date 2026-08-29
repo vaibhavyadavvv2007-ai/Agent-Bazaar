@@ -59,7 +59,7 @@ export default function StreetRules() {
     <section className="rule-box p-4">
       <header className="flex items-baseline justify-between">
         <h2 className="font-masthead text-sm uppercase tracking-[0.08em]">Standing Orders</h2>
-        <span className="font-clause text-[10px] uppercase tracking-[0.14em] text-(--ink-soft)">
+        <span className="font-clause text-[11px] uppercase tracking-[0.14em] text-(--ink-soft)">
           binding on all agents
         </span>
       </header>
@@ -77,19 +77,34 @@ export default function StreetRules() {
           const disabled = saving === rule.id;
           const inForce = rule.enabled;
           return (
-            <li key={rule.id} className="border border-(--paper-edge) bg-[#faf6ea] p-3">
+            <li
+              key={rule.id}
+              className={`border bg-[#faf6ea] p-3 ${
+                inForce
+                  ? "border-l-[3px] border-l-(--ok) border-y-(--paper-edge) border-r-(--paper-edge)"
+                  : "border-dashed border-(--paper-edge) opacity-75"
+              }`}
+            >
               <div className="flex items-start justify-between gap-3">
-                <p className="text-[13px] leading-snug">
-                  <span className="font-clause font-bold">Order {meta.no}.</span>{" "}
-                  <span className="font-semibold">{meta.title}.</span>{" "}
-                  <ClauseText rule={rule} />
-                </p>
+                <div>
+                  {/* Order number + title — the operational headline */}
+                  <div className="font-masthead text-[15px] leading-tight text-(--ink)">
+                    <span className="font-clause text-[11px] font-bold uppercase tracking-[0.14em] text-(--ink-faint)">Order {meta.no}</span>
+                    <span className="mx-1.5 text-(--ink-faint)" aria-hidden="true">·</span>
+                    {meta.title}
+                  </div>
+                  {/* The clause — what it prevents, in body serif */}
+                  <p className="font-body mt-1 text-[13px] leading-snug text-(--ink-soft)">
+                    <ClauseText rule={rule} />
+                  </p>
+                </div>
                 <button
                   onClick={() => update(rule, { enabled: !inForce })}
                   disabled={disabled}
-                  className={`seal press shrink-0 text-[11px] ${inForce ? "seal-green" : "seal-red"}`}
+                  className={`plate press shrink-0 text-[11px] ${inForce ? "plate-ok" : "plate-bad"}`}
                   aria-label={`${inForce ? "Repeal" : "Restore"} Order ${meta.no}`}
                 >
+                  <span className="dot" aria-hidden="true" />
                   {inForce ? "In force" : "Repealed"}
                 </button>
               </div>

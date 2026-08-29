@@ -46,10 +46,10 @@ export default function ShopkeeperHUD() {
 
   return (
     <div className="rule-box grid grid-cols-2 divide-x divide-(--paper-edge) sm:grid-cols-4">
-      <Tile label="Money captured" value={score.captured} prefix="₹" tone="ink" />
-      <Tile label="Failures recovered" value={score.saved} note="money saved" tone="green" />
-      <Tile label="Refusals issued" value={score.blocked} note="policy denies" tone="red" />
-      <Tile label="Summonses answered" value={score.handled} note="gate decisions" tone="gold" />
+      <Tile label="Money captured" value={score.captured} prefix="₹" tone="ok" />
+      <Tile label="Failures recovered" value={score.saved} note="money saved" tone="ok" />
+      <Tile label="Refusals issued" value={score.blocked} note="policy denies" tone="bad" />
+      <Tile label="Summonses answered" value={score.handled} note="gate decisions" tone="warn" />
     </div>
   );
 }
@@ -59,15 +59,15 @@ function Tile(props: {
   value: number;
   prefix?: string;
   note?: string;
-  tone: "ink" | "green" | "red" | "gold";
+  tone: "ink" | "ok" | "bad" | "warn";
 }) {
   const color =
-    props.tone === "green"
-      ? "text-(--henna)"
-      : props.tone === "red"
-        ? "text-(--seal)"
-        : props.tone === "gold"
-          ? "text-(--thread)"
+    props.tone === "ok"
+      ? "text-(--ok)"
+      : props.tone === "bad"
+        ? "text-(--bad)"
+        : props.tone === "warn"
+          ? "text-(--warn)"
           : "text-(--ink)";
   const chars = String(Math.round(props.value)).split("");
   return (

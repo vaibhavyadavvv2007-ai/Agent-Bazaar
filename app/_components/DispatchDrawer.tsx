@@ -381,7 +381,7 @@ export default function DispatchDrawer() {
               {state === "done" && result && !result.error ? (
                 <div className="border border-(--ink-faint) bg-(--paper-deep) p-3">
                   <div className="seal" style={{ color: "var(--ink-soft)" }}>session ended</div>
-                  <p className="mt-2 font-clause text-[13px] leading-relaxed text-(--ink)">
+                  <p className="mt-2 font-body text-[13px] leading-snug text-(--ink)">
                     The agent has completed its script. Check the notice board to see if the cart was successful, denied, or requires payment.
                   </p>
                   {result.session_id && (
@@ -394,7 +394,7 @@ export default function DispatchDrawer() {
               ) : (
                 <div className="border border-(--seal) bg-(--seal)/8 p-3">
                   <div className="seal seal-red">failed</div>
-                  <p className="mt-2 font-clause text-[13px] leading-relaxed text-(--ink)">
+                  <p className="mt-2 font-body text-[13px] leading-snug text-(--ink)">
                     {result?.error ?? "Unknown error"}
                     {result?.detail && (
                       <>

@@ -77,9 +77,9 @@ export default function AgentTranscript() {
       {/* Session filter */}
       {activeSessions.length > 0 && (
         <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scroll-column">
-          <button 
+          <button
             onClick={() => setFilterSession(null)}
-            className={`press font-clause text-[10px] uppercase px-2 py-0.5 border ${!filterSession ? "border-(--ink) bg-(--paper-deep) text-(--ink)" : "border-(--paper-edge) bg-transparent text-(--ink-soft)"}`}
+            className={`press font-clause text-[11px] uppercase px-2 py-0.5 border ${!filterSession ? "border-(--ink) bg-(--paper-deep) text-(--ink)" : "border-(--paper-edge) bg-transparent text-(--ink-soft)"}`}
           >
             All Agents
           </button>
@@ -87,7 +87,7 @@ export default function AgentTranscript() {
             <button
               key={sid}
               onClick={() => setFilterSession(sid)}
-              className={`press font-clause text-[10px] px-2 py-0.5 border ${filterSession === sid ? "border-(--ink) bg-(--paper-deep) text-(--ink)" : "border-(--paper-edge) bg-transparent text-(--ink-soft)"}`}
+              className={`press font-clause text-[11px] px-2 py-0.5 border ${filterSession === sid ? "border-(--ink) bg-(--paper-deep) text-(--ink)" : "border-(--paper-edge) bg-transparent text-(--ink-soft)"}`}
               style={{ borderBottomColor: hueFor(sid), borderBottomWidth: filterSession === sid ? '2px' : '1px' }}
             >
               {shortName(sid)}
@@ -111,14 +111,14 @@ export default function AgentTranscript() {
             </div>
             
             {l.type === "speech" && (
-              <div className="text-(--ink) italic bg-(--paper-deep) p-1.5 border border-(--paper-edge)">
-                "{l.text}"
+              <div className="font-body text-[13px] leading-snug italic bg-(--paper-deep) p-1.5 border border-(--paper-edge)">
+                “{l.text}”
               </div>
             )}
-            
+
             {l.type === "tool" && (
               <div className="mt-1">
-                <div className="text-(--ink-soft) uppercase text-[10px] tracking-widest font-bold">[{l.toolName}]</div>
+                <div className="text-(--ink-soft) uppercase text-[11px] tracking-widest font-bold">[{l.toolName}]</div>
                 <div className="mt-1 text-(--ink) bg-(--paper) p-1 border border-(--paper-edge) whitespace-pre-wrap overflow-hidden">
                   <span className="text-(--ink-soft)">Args:</span> {l.toolArgs}
                 </div>
@@ -131,7 +131,7 @@ export default function AgentTranscript() {
             )}
             
             {(l.type === "arrival" || l.type === "departure") && (
-              <div className="font-clause text-[10px] uppercase tracking-[0.14em] text-(--ink-soft) mt-1">
+              <div className="font-clause text-[11px] uppercase tracking-[0.14em] text-(--ink-soft) mt-1">
                 {l.text}
               </div>
             )}

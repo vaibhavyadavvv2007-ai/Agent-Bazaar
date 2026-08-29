@@ -57,12 +57,12 @@ export default function RootLayout({
           carrying its provenance.
         */}
         {children}
-        <Toaster 
+        <Toaster
           position="bottom-left"
           toastOptions={{
-            className: "font-clause text-[11px] border-2 border-(--ink) bg-(--paper) text-(--ink) rounded-none shadow-[0_4px_16px_rgba(28,26,23,0.18)] p-3",
+            className: "font-clause text-[12px] border-2 border-(--ink) bg-(--paper) text-(--ink) rounded-none shadow-[0_4px_16px_rgba(28,26,23,0.18)] p-3",
             style: { fontFamily: "'Courier Prime', monospace" }
-          }} 
+          }}
         />
       </body>
     </html>
