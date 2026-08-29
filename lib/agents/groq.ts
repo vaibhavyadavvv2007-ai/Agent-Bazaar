@@ -9,7 +9,11 @@ import type { ChatCompletionTool, ChatCompletionMessageParam } from "groq-sdk/re
  * available on Buildathon keys that follows strict JSON schema.
  */
 export function groqAdapter(model: string = "openai/gpt-oss-120b"): AdapterCall {
-  const client = new Groq(); // reads GROQ_API_KEY
+  // Free-tier Groq caps at ~8k tokens/min; one agent turn resends the full
+  // system prompt + history, so 429s mid-session are routine. The SDK backs
+  // off on Groq's Retry-After — give it room to wait the window out instead
+  // of failing the whole session.
+  const client = new Groq({ maxRetries: 4 }); // reads GROQ_API_KEY
 
   return async ({ system, tools, messages }) => {
     // Map tool schemas to Groq's OpenAI-compatible tool format
