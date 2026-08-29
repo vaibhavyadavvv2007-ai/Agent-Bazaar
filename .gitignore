@@ -1,3 +1,5 @@
+demo_script.md
+PRODUCT.md
 # dependencies
 /node_modules
 
@@ -39,3 +41,5 @@ next-env.d.ts
 /.codex/
 /.impeccable/
 /skills-lock.json
+/.playwright-mcp
+
