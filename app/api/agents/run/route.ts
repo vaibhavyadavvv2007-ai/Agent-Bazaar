@@ -59,8 +59,8 @@ export async function POST(req: NextRequest) {
   const provider = body.provider ?? "groq";
 
   const adapter = body.provider === "claude"
-    ? claudeAdapter(body.model ?? "claude-haiku-4-5")
-    : groqAdapter(body.model ?? "llama-3.3-70b-versatile");
+    ? claudeAdapter(body.model ?? "claude-3-haiku-20240307")
+    : groqAdapter(body.model ?? "openai/gpt-oss-120b");
 
   try {
     const result = await runAgentSession(
