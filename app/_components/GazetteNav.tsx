@@ -17,7 +17,7 @@ const SECTIONS: { href: string; label: string; external?: boolean }[] = [
   { href: "/api/catalog?format=agent", label: "Machine-readable catalog", external: true },
 ] as const;
 
-export default function GazetteNav({ today }: { today: string }) {
+export default function GazetteNav({ today }: { today?: string }) {
   const pathname = usePathname();
 
   return (
@@ -25,7 +25,7 @@ export default function GazetteNav({ today }: { today: string }) {
       className="mt-1.5 flex flex-wrap items-baseline justify-center gap-x-5 gap-y-1 font-clause text-[12px]"
       aria-label="Gazette sections"
     >
-      <span className="text-(--ink-faint)">{today}</span>
+      {today && <span className="text-(--ink-faint)">{today}</span>}
       {SECTIONS.map((s) => {
         const active = !("external" in s) && pathname === s.href;
         if ("external" in s) {

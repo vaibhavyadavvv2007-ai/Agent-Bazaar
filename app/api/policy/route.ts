@@ -28,6 +28,28 @@ export async function GET() {
   const rules = rowsToObjects<RuleRow>(
     await db().execute("SELECT id, agent_id, kind, config_json, enabled FROM policy_rules ORDER BY kind, id")
   );
+
+  // Recent enforcement activity per rule — how often this rule actually fired
+  // (cited in a decision's reasons) in the last 24 hours. Honest counts from
+  // policy_decisions; a rule that never fired reads zero, not "—".
+  const cutoff = new Date(Date.now() - 86400_000).toISOString();
+  const activity: Record<string, { gate_24h: number; deny_24h: number; allow_24h: number }> = {};
+  for (const r of rules) {
+    const res = rowsToObjects<{ verdict: string; n: number }>(
+      await db().execute({
+        sql: `SELECT verdict, COUNT(*) AS n FROM policy_decisions
+              WHERE reasons_json LIKE ? AND evaluated_at >= ?
+              GROUP BY verdict`,
+        args: [`%${r.id}%`, cutoff],
+      })
+    );
+    activity[r.id] = {
+      gate_24h: Number(res.find((x) => x.verdict === "gate")?.n ?? 0),
+      deny_24h: Number(res.find((x) => x.verdict === "deny")?.n ?? 0),
+      allow_24h: Number(res.find((x) => x.verdict === "allow")?.n ?? 0),
+    };
+  }
+
   return NextResponse.json({
     rules: rules.map((r) => ({
       id: r.id,
@@ -35,6 +57,7 @@ export async function GET() {
       kind: r.kind,
       enabled: r.enabled === 1,
       config: JSON.parse(r.config_json) as Record<string, unknown>,
+      activity: activity[r.id] ?? { gate_24h: 0, deny_24h: 0, allow_24h: 0 },
     })),
   });
 }

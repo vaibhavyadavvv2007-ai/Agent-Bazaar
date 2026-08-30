@@ -12,6 +12,8 @@ type Rule = {
   kind: "daily_cap" | "velocity" | "category_deny" | "max_single";
   enabled: boolean;
   config: { limit_paise?: number; max_txns?: number; window_minutes?: number; category?: string };
+  /** Recent enforcement — real counts from policy_decisions (24h). */
+  activity?: { gate_24h: number; deny_24h: number; allow_24h: number };
 };
 
 const rupees = (paise: number) => `₹${(paise / 100).toLocaleString("en-IN")}`;
@@ -56,7 +58,7 @@ export default function StreetRules() {
   }
 
   return (
-    <section className="rule-box p-4">
+    <section id="standing-orders" className="rule-box p-4">
       <header className="flex items-baseline justify-between">
         <h2 className="font-masthead text-sm uppercase tracking-[0.08em]">Standing Orders</h2>
         <span className="font-clause text-[11px] uppercase tracking-[0.14em] text-(--ink-soft)">
@@ -138,6 +140,30 @@ export default function StreetRules() {
                   <span className="pointer" aria-hidden="true" />
                   Fig. 4: goods of category “{rule.config.category ?? "—"}” are refused at the wall.
                 </p>
+              )}
+
+              {/* Recent enforcement — did this wall actually meet anyone? */}
+              {rule.activity && (rule.activity.gate_24h > 0 || rule.activity.deny_24h > 0) ? (
+                <p className="fig mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span>
+                    <span className="pointer" aria-hidden="true" />
+                    last 24h: {rule.activity.gate_24h} held
+                    {rule.activity.deny_24h > 0 ? ` · ${rule.activity.deny_24h} refused` : ""}
+                  </span>
+                  <a
+                    href="/receipts?filter=gated"
+                    className="font-bold uppercase tracking-wider text-(--rule-blue) underline decoration-(--rule-blue)/50 underline-offset-2 hover:text-(--ink)"
+                  >
+                    see the gated transactions →
+                  </a>
+                </p>
+              ) : (
+                rule.activity && (
+                  <p className="fig mt-2">
+                    <span className="pointer" aria-hidden="true" />
+                    last 24h: no cart has met this wall.
+                  </p>
+                )
               )}
             </li>
           );

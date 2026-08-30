@@ -185,6 +185,26 @@ body {
   flex-shrink: 0;
 }
 
+/* StatusStamp glyph: ✓ / ! / × / ● / □ — state readable without color. */
+.plate .glyph {
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Screen-reader-only text (search labels etc.) — visible to machines,
+   invisible to sighted users, never display:none (that drops it for AT). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ── Mode stamp: test vs real money, impossible to miss ──────── */
 .mode-stamp {
   display: inline-flex;

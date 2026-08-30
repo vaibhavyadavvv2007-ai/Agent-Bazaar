@@ -40,8 +40,21 @@ export async function GET(req: NextRequest) {
   // needs a checkout button for these even if the approval happened elsewhere.
   const open_checkouts = await listOpenCheckouts(req.nextUrl.origin);
 
+  // Decisions made today — the queue's "completed" counter (UTC-day boundary,
+  // honest for synthetic traffic).
+  const decided = await db().execute(`
+    SELECT outcome, COUNT(*) AS n
+    FROM approvals
+    WHERE decided_at IS NOT NULL AND date(decided_at) = date('now')
+    GROUP BY outcome
+  `);
+  const decided_today = {
+    approved: Number(decided.rows.find((r) => String(r.outcome) === "approved")?.n ?? 0),
+    rejected: Number(decided.rows.find((r) => String(r.outcome) === "rejected")?.n ?? 0),
+  };
+
   return NextResponse.json(
-    { count: queue.length, queue, open_checkouts },
+    { count: queue.length, queue, open_checkouts, decided_today },
     { headers: { "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0" } }
   );
 }

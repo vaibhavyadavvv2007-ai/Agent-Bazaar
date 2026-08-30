@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { FilterBar, PageHeader, SectionHeader, StatusStamp, type FilterOption } from "../_components/gazette";
 
 /**
- * Campaign Management — the merchant's promotion control room.
- *
- * Lists all campaigns (active, expired, disabled) with stats. Create new
- * campaigns via a form. Toggle enable/disable. Delete. All in gazette style.
+ * CAMPAIGN MANAGER — "what offers are active, what are they doing, and how
+ * are they performing?" Cards lead with status, then the agent-readable
+ * rule, then performance evidence; delete is destructive and asks twice.
  */
 
 type CampaignKind = "bundle" | "flash_sale" | "cross_sell";
@@ -32,28 +33,31 @@ type NewCampaign = {
   ends_at: string;
 };
 
+type Filter = "all" | "active" | "upcoming" | "expired" | "disabled";
+
 const KIND_LABELS: Record<CampaignKind, string> = {
   bundle: "Bundle Deal",
   flash_sale: "Flash Sale",
   cross_sell: "Cross-Sell",
 };
 
-const KIND_ICONS: Record<CampaignKind, string> = {
-  bundle: "B",
-  flash_sale: "F",
-  cross_sell: "X",
+/** Money always carries its paise: ₹300 or ₹3,161.70 — never ₹3,161.7. */
+const rupees = (paise: number) => {
+  const v = paise / 100;
+  return `₹${v.toLocaleString("en-IN", {
+    minimumFractionDigits: Number.isInteger(v) ? 0 : 2,
+    maximumFractionDigits: 2,
+  })}`;
 };
 
-const rupees = (paise: number) =>
-  `₹${(paise / 100).toLocaleString("en-IN")}`;
-
-const nowISO = () => new Date().toISOString();
 const inDays = (d: number) =>
   new Date(Date.now() + d * 86400000).toISOString();
 const inMinutes = (m: number) =>
   new Date(Date.now() + m * 60000).toISOString();
 
-function campaignStatus(c: Campaign): "active" | "expired" | "upcoming" | "disabled" {
+type Status = "active" | "expired" | "upcoming" | "disabled";
+
+function campaignStatus(c: Campaign): Status {
   if (!c.enabled) return "disabled";
   const now = new Date().toISOString();
   if (now < c.starts_at) return "upcoming";
@@ -61,11 +65,26 @@ function campaignStatus(c: Campaign): "active" | "expired" | "upcoming" | "disab
   return "active";
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  active: "seal seal-green",
-  expired: "seal seal-red",
-  upcoming: "seal seal-gold",
-  disabled: "seal",
+/** The agent-readable rule — the same sentence the agent reasons over. */
+function agentRule(c: Campaign): string {
+  const cfg = c.config as Record<string, unknown>;
+  const n = (k: string) => Number(cfg[k] ?? 0);
+  const arr = (k: string) => (Array.isArray(cfg[k]) ? (cfg[k] as string[]).join(", ") : "—");
+  switch (c.kind) {
+    case "bundle":
+      return `IF the cart contains ${n("min_items") || 2}+ items from ${arr("categories")}, THEN ${n("discount_percent")}% comes off those items.`;
+    case "flash_sale":
+      return `IF a cart line is ${arr("skus")}, THEN its price drops to ${rupees(n("sale_price_paise"))}.`;
+    case "cross_sell":
+      return `IF the cart spans ${n("min_categories") || 2}+ categories, THEN ${n("discount_percent")}% comes off the cheapest eligible item.`;
+  }
+}
+
+const STATUS_STAMP: Record<Status, { state: "ok" | "info" | "neutral"; label: string }> = {
+  active: { state: "ok", label: "active" },
+  upcoming: { state: "info", label: "scheduled" },
+  expired: { state: "neutral", label: "expired" },
+  disabled: { state: "neutral", label: "disabled" },
 };
 
 export default function CampaignsPage() {
@@ -73,6 +92,7 @@ export default function CampaignsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<Filter>("all");
 
   const load = useCallback(async () => {
     try {
@@ -98,47 +118,44 @@ export default function CampaignsPage() {
     load();
   }
 
-  async function deleteCampaign(id: string) {
-    if (!confirm("Delete this campaign? This cannot be undone.")) return;
+  async function deleteCampaign(id: string, name: string) {
+    if (!confirm(`Delete "${name}"? Its recorded applications stay in the audit trail, but the campaign itself cannot be recovered.`)) return;
     await fetch(`/api/campaigns/${id}`, { method: "DELETE" });
     load();
   }
 
+  const counts = { all: campaigns.length, active: 0, upcoming: 0, expired: 0, disabled: 0 };
+  for (const c of campaigns) counts[campaignStatus(c)]++;
+
+  const visible = campaigns.filter((c) => filter === "all" || campaignStatus(c) === filter);
+
+  const options: FilterOption<Filter>[] = [
+    { value: "all", label: "All", count: counts.all },
+    { value: "active", label: "Active", count: counts.active },
+    { value: "upcoming", label: "Scheduled", count: counts.upcoming },
+    { value: "expired", label: "Expired", count: counts.expired },
+    { value: "disabled", label: "Disabled", count: counts.disabled },
+  ];
+
   return (
-    <main className="mx-auto max-w-5xl px-6 py-10 min-h-screen">
-      {/* Header */}
-      <header className="mb-2 flex flex-wrap items-center justify-between gap-3 border-b-2 border-double border-(--ink) pb-4">
-        <div>
-          <h1 className="font-masthead text-2xl font-bold tracking-tight uppercase">
-            Campaign Manager
-          </h1>
-          <p className="fig mt-1">
-            <span className="pointer" aria-hidden="true" />
-            create and manage promotions for the bazaar
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <a
-            href="/"
-            className="press border border-(--paper-edge) px-3 py-1.5 font-clause text-xs font-bold uppercase tracking-wider text-(--ink-soft) hover:border-(--ink)"
-          >
-            ← Floor
-          </a>
-          <button
-            onClick={() => {
-              setShowForm(!showForm);
-              setEditing(null);
-            }}
-            className="press bg-(--seal) px-4 py-1.5 font-clause text-xs font-bold uppercase tracking-wider text-(--paper) hover:bg-(--seal)/90"
-          >
-            {showForm ? "Close" : "+ New Campaign"}
-          </button>
-        </div>
-      </header>
+    <main className="mx-auto max-w-5xl px-6 py-8 min-h-screen">
+      <PageHeader title="Campaign Manager" kicker="what offers are active, and what they do" />
 
-      <div className="security-thread-band mt-3" aria-hidden="true" />
+      {/* ── Actions ────────────────────────────────────────────── */}
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+        <FilterBar options={options} value={filter} onChange={setFilter} ariaLabel="Filter campaigns" />
+        <button
+          onClick={() => {
+            setShowForm(!showForm);
+            setEditing(null);
+          }}
+          className="press border-[1.5px] border-(--ink) bg-(--ink) px-4 py-1.5 font-clause text-xs font-bold uppercase tracking-wider text-(--paper) hover:bg-(--ink-soft)"
+        >
+          {showForm ? "Close form" : "+ New campaign"}
+        </button>
+      </div>
 
-      {/* Create/Edit Form */}
+      {/* ── Create/Edit Form ───────────────────────────────────── */}
       {showForm && (
         <CampaignForm
           editing={editing ? (campaigns.find((c) => c.id === editing) ?? null) : null}
@@ -154,154 +171,117 @@ export default function CampaignsPage() {
         />
       )}
 
-      {/* Campaign List */}
-      <section className="mt-6">
-        <h2 className="font-masthead text-sm font-bold uppercase tracking-[0.08em]">
-          All Campaigns
-        </h2>
+      {/* ── Campaign List ──────────────────────────────────────── */}
+      <section className="mt-6" aria-label="Campaigns">
+        <SectionHeader title="The Ledger of Offers" kicker={`${visible.length} shown`} />
         <div className="security-thread-band mt-2" aria-hidden="true" />
 
         {loading ? (
-          <p className="mt-4 font-clause text-xs text-(--ink-soft)">
-            Loading campaigns...
-          </p>
-        ) : campaigns.length === 0 ? (
-          <div className="mt-4 border border-dashed border-(--paper-edge) p-6 text-center">
-            <p className="font-clause text-sm text-(--ink-soft)">
-              No campaigns yet. Create one to offer bundle discounts, flash sales,
+          <p className="mt-4 font-clause text-xs text-(--ink-soft)">Loading campaigns…</p>
+        ) : visible.length === 0 ? (
+          <div className="mt-3 border-[1.5px] border-dashed border-(--ink-soft) bg-(--paper-deep) p-8 text-center">
+            <div className="flex justify-center"><StatusStamp state="neutral">none here</StatusStamp></div>
+            <p className="mt-3 font-body text-[13px] text-(--ink-soft)">
+              No campaigns in this drawer. Create one to offer bundle discounts, flash sales,
               or cross-sell deals to AI shoppers.
             </p>
           </div>
         ) : (
           <div className="mt-3 space-y-3">
-            {campaigns.map((c) => {
+            {visible.map((c) => {
               const status = campaignStatus(c);
+              const stamp = STATUS_STAMP[status];
+              const used = c.stats.times_applied > 0;
               return (
-                <div
+                <article
                   key={c.id}
-                  className={`border bg-(--paper) p-4 ${
+                  className={`border-[1.5px] bg-(--paper-deep) p-4 ${
                     status === "active"
-                      ? "border-(--ink)"
-                      : "border-(--paper-edge) opacity-75"
+                      ? "border-l-[3px] border-l-(--ok) border-(--ink)"
+                      : "border-(--paper-edge) opacity-90"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-baseline gap-2">
-                        <span className="seal text-[10px]">{KIND_ICONS[c.kind]}</span>
-                        <h3 className="font-masthead text-sm font-bold uppercase tracking-[0.06em]">
-                          {c.name}
-                        </h3>
-                        <span className={STATUS_STYLES[status]}>
-                          {status}
-                        </span>
-                        <span className="font-clause text-[10px] uppercase tracking-wider text-(--ink-soft)">
-                          {KIND_LABELS[c.kind]}
-                        </span>
-                      </div>
-                      <p className="mt-1 font-clause text-xs text-(--ink-soft)">
-                        {c.description}
-                      </p>
-
-                      {/* Config summary */}
-                      <div className="mt-2 flex flex-wrap gap-3 font-clause text-[11px]">
-                        {c.kind === "bundle" && (
-                          <>
-                            <span>
-                              Categories:{" "}
-                              <strong>
-                                {(c.config as any).categories?.join(", ")}
-                              </strong>
-                            </span>
-                            <span>
-                              Min items: <strong>{(c.config as any).min_items}</strong>
-                            </span>
-                            <span>
-                              Discount:{" "}
-                              <strong>{(c.config as any).discount_percent}%</strong>
-                            </span>
-                          </>
-                        )}
-                        {c.kind === "flash_sale" && (
-                          <>
-                            <span>
-                              SKUs:{" "}
-                              <strong>{(c.config as any).skus?.join(", ")}</strong>
-                            </span>
-                            <span>
-                              Sale price:{" "}
-                              <strong>
-                                {rupees((c.config as any).sale_price_paise)}
-                              </strong>
-                            </span>
-                          </>
-                        )}
-                        {c.kind === "cross_sell" && (
-                          <>
-                            <span>
-                              Min categories:{" "}
-                              <strong>{(c.config as any).min_categories}</strong>
-                            </span>
-                            <span>
-                              Discount:{" "}
-                              <strong>{(c.config as any).discount_percent}%</strong>
-                            </span>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Time window */}
-                      <div className="mt-2 flex gap-4 font-clause text-[11px] text-(--ink-soft)">
-                        <span>
-                          From: {new Date(c.starts_at).toLocaleString("en-IN")}
-                        </span>
-                        <span>
-                          To: {new Date(c.ends_at).toLocaleString("en-IN")}
-                        </span>
-                      </div>
-
-                      {/* Stats */}
-                      <div className="mt-2 flex gap-4 font-clause text-[11px]">
-                        <span>
-                          Applied: <strong>{c.stats.times_applied}</strong> times
-                        </span>
-                        <span>
-                          Total discount:{" "}
-                          <strong>{rupees(c.stats.total_discount)}</strong>
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex flex-col gap-1.5">
-                      <button
-                        onClick={() => toggleEnabled(c.id, c.enabled)}
-                        className={`press border px-2 py-1 font-clause text-[10px] font-bold uppercase tracking-wider ${
-                          c.enabled
-                            ? "border-(--henna) text-(--henna) hover:bg-(--henna)/10"
-                            : "border-(--paper-edge) text-(--ink-soft) hover:border-(--ink)"
-                        }`}
-                      >
-                        {c.enabled ? "Enabled" : "Disabled"}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setEditing(c.id);
-                          setShowForm(true);
-                        }}
-                        className="press border border-(--paper-edge) px-2 py-1 font-clause text-[10px] font-bold uppercase tracking-wider text-(--ink-soft) hover:border-(--ink)"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => deleteCampaign(c.id)}
-                        className="press border border-(--seal)/40 px-2 py-1 font-clause text-[10px] font-bold uppercase tracking-wider text-(--seal)/60 hover:border-(--seal) hover:text-(--seal)"
-                      >
-                        Delete
-                      </button>
-                    </div>
+                  {/* Status + name + type */}
+                  <div className="flex flex-wrap items-baseline gap-2">
+                    <StatusStamp state={stamp.state}>{stamp.label}</StatusStamp>
+                    <h3 className="font-masthead text-[15px] font-bold uppercase tracking-[0.06em] text-(--ink)">
+                      {c.name}
+                    </h3>
+                    <span className="font-clause text-[11px] uppercase tracking-wider text-(--ink-soft)">
+                      {KIND_LABELS[c.kind]}
+                    </span>
                   </div>
-                </div>
+
+                  {/* The agent-readable rule */}
+                  <div className="mt-2 border border-(--paper-edge) bg-(--paper) px-3 py-2">
+                    <p className="font-clause text-[11px] font-bold uppercase tracking-[0.14em] text-(--ink-soft)">
+                      Agent rule
+                    </p>
+                    <p className="font-body mt-0.5 text-[13px] text-(--ink)">
+                      {agentRule(c)}
+                    </p>
+                  </div>
+
+                  {/* Performance — the evidence */}
+                  <div className="mt-3 flex flex-wrap items-baseline gap-x-6 gap-y-1">
+                    {used ? (
+                      <>
+                        <div>
+                          <div className="digits text-xl text-(--ink)">{c.stats.times_applied}</div>
+                          <div className="fig">applications</div>
+                        </div>
+                        <div>
+                          <div className="digits text-xl text-(--ok-ink)">{rupees(c.stats.total_discount)}</div>
+                          <div className="fig">discount given</div>
+                        </div>
+                        <Link
+                          href={`/receipts?campaign=${c.id}`}
+                          className="press min-h-6 self-center border-b border-(--rule-blue) font-clause text-[11px] font-bold uppercase tracking-wider text-(--rule-blue) hover:text-(--ink)"
+                        >
+                          view the receipts →
+                        </Link>
+                      </>
+                    ) : (
+                      <p className="fig">
+                        <span className="pointer" aria-hidden="true" />
+                        not yet applied — the first qualifying cart will record here
+                      </p>
+                    )}
+                    <p className="fig ml-auto">
+                      <span className="pointer" aria-hidden="true" />
+                      {new Date(c.starts_at).toLocaleDateString("en-IN")} → {new Date(c.ends_at).toLocaleDateString("en-IN")}
+                    </p>
+                  </div>
+
+                  {/* Actions — edit and toggle first; delete is destructive and last */}
+                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-(--paper-edge) pt-3">
+                    <button
+                      onClick={() => {
+                        setEditing(c.id);
+                        setShowForm(true);
+                      }}
+                      className="press border-[1.5px] border-(--ink) bg-transparent px-3 py-1.5 font-clause text-[11px] font-bold uppercase tracking-wider text-(--ink) hover:bg-(--ink) hover:text-(--paper)"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => toggleEnabled(c.id, c.enabled)}
+                      className={`press border-[1.5px] px-3 py-1.5 font-clause text-[11px] font-bold uppercase tracking-wider ${
+                        c.enabled
+                          ? "border-(--paper-edge) bg-transparent text-(--ink-soft) hover:border-(--ink) hover:text-(--ink)"
+                          : "border-(--ok) bg-transparent text-(--ok-ink) hover:bg-(--ok-bg)"
+                      }`}
+                    >
+                      {c.enabled ? "Disable" : "Restore"}
+                    </button>
+                    <button
+                      onClick={() => deleteCampaign(c.id, c.name)}
+                      className="press ml-auto border border-(--bad)/40 bg-transparent px-3 py-1.5 font-clause text-[11px] font-bold uppercase tracking-wider text-(--bad-ink)/70 hover:border-(--bad) hover:text-(--bad-ink)"
+                    >
+                      Delete…
+                    </button>
+                  </div>
+                </article>
               );
             })}
           </div>
@@ -312,8 +292,7 @@ export default function CampaignsPage() {
       <footer className="mt-8 pt-3 text-center font-clause text-[11px] text-(--ink-soft)">
         <p className="fig">
           <span className="pointer" aria-hidden="true" />
-          Campaign discounts are auto-applied at checkout and recorded in the
-          audit trail.
+          Campaign discounts are auto-applied at checkout and recorded in the audit trail.
         </p>
       </footer>
     </main>
@@ -439,36 +418,36 @@ function CampaignForm({
     setSaving(false);
   }
 
+  const inputCls =
+    "mt-1 w-full border border-(--paper-edge) bg-(--paper) px-2.5 py-1.5 font-clause text-xs text-(--ink) placeholder:text-(--ink-faint) focus:border-(--ink) focus:shadow-[0_0_0_1.5px_var(--seal)] focus:outline-none";
+  const labelCls = "font-clause text-[11px] uppercase tracking-[0.14em] text-(--ink-soft)";
+
   return (
-    <div className="mt-4 border-2 border-(--ink) bg-(--paper) p-4 shadow-[4px_4px_0_var(--ink)]">
+    <div className="mt-5 border-2 border-(--ink) bg-(--paper) p-4 shadow-[4px_4px_0_var(--ink)]">
       <h3 className="font-masthead text-sm font-bold uppercase tracking-[0.08em]">
         {editing ? "Edit Campaign" : "New Campaign"}
       </h3>
 
       <form onSubmit={handleSubmit} className="mt-3 space-y-3">
         {/* Name + Kind */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label className="block">
-            <span className="font-clause text-[11px] uppercase tracking-[0.14em] text-(--ink-soft)">
-              Campaign Name
-            </span>
+            <span className={labelCls}>Campaign Name</span>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="mt-1 w-full border border-(--paper-edge) bg-(--paper) px-2 py-1.5 font-clause text-xs focus:border-(--ink) focus:outline-none"
+              className={inputCls}
               placeholder="e.g. Diwali Bundle Deal"
             />
           </label>
           <label className="block">
-            <span className="font-clause text-[11px] uppercase tracking-[0.14em] text-(--ink-soft)">
-              Type
-            </span>
+            <span className={labelCls}>Type</span>
             <select
               value={kind}
               onChange={(e) => setKind(e.target.value as CampaignKind)}
-              className="mt-1 w-full border border-(--paper-edge) bg-(--paper) px-2 py-1.5 font-clause text-xs focus:border-(--ink) focus:outline-none"
+              className={inputCls}
             >
               <option value="bundle">Bundle Deal</option>
               <option value="flash_sale">Flash Sale</option>
@@ -479,14 +458,12 @@ function CampaignForm({
 
         {/* Description */}
         <label className="block">
-          <span className="font-clause text-[11px] uppercase tracking-[0.14em] text-(--ink-soft)">
-            Description
-          </span>
+          <span className={labelCls}>Description</span>
           <input
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="mt-1 w-full border border-(--paper-edge) bg-(--paper) px-2 py-1.5 font-clause text-xs focus:border-(--ink) focus:outline-none"
+            className={inputCls}
             placeholder="e.g. Buy 2+ mithai items, get 15% off"
           />
         </label>
@@ -495,101 +472,87 @@ function CampaignForm({
 
         {/* Kind-specific config */}
         {kind === "bundle" && (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <label className="block">
-              <span className="font-clause text-[11px] uppercase tracking-[0.14em] text-(--ink-soft)">
-                Categories
-              </span>
+              <span className={labelCls}>Categories</span>
               <input
                 type="text"
                 value={bundleCategories}
                 onChange={(e) => setBundleCategories(e.target.value)}
-                className="mt-1 w-full border border-(--paper-edge) bg-(--paper) px-2 py-1.5 font-clause text-xs focus:border-(--ink) focus:outline-none"
+                className={inputCls}
                 placeholder="mithai, chai"
               />
             </label>
             <label className="block">
-              <span className="font-clause text-[11px] uppercase tracking-[0.14em] text-(--ink-soft)">
-                Min Items
-              </span>
+              <span className={labelCls}>Min Items</span>
               <input
                 type="number"
                 min={1}
                 value={bundleMinItems}
                 onChange={(e) => setBundleMinItems(e.target.value)}
-                className="mt-1 w-full border border-(--paper-edge) bg-(--paper) px-2 py-1.5 font-clause text-xs focus:border-(--ink) focus:outline-none"
+                className={inputCls}
               />
             </label>
             <label className="block">
-              <span className="font-clause text-[11px] uppercase tracking-[0.14em] text-(--ink-soft)">
-                Discount %
-              </span>
+              <span className={labelCls}>Discount %</span>
               <input
                 type="number"
                 min={1}
                 max={90}
                 value={bundleDiscount}
                 onChange={(e) => setBundleDiscount(e.target.value)}
-                className="mt-1 w-full border border-(--paper-edge) bg-(--paper) px-2 py-1.5 font-clause text-xs focus:border-(--ink) focus:outline-none"
+                className={inputCls}
               />
             </label>
           </div>
         )}
 
         {kind === "flash_sale" && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="block">
-              <span className="font-clause text-[11px] uppercase tracking-[0.14em] text-(--ink-soft)">
-                SKUs (comma-separated)
-              </span>
+              <span className={labelCls}>SKUs (comma-separated)</span>
               <input
                 type="text"
                 value={flashSkus}
                 onChange={(e) => setFlashSkus(e.target.value)}
-                className="mt-1 w-full border border-(--paper-edge) bg-(--paper) px-2 py-1.5 font-clause text-xs focus:border-(--ink) focus:outline-none"
+                className={inputCls}
                 placeholder="CHAI-MSL-001, MITH-KAJU-004"
               />
             </label>
             <label className="block">
-              <span className="font-clause text-[11px] uppercase tracking-[0.14em] text-(--ink-soft)">
-                Sale Price (paise)
-              </span>
+              <span className={labelCls}>Sale Price (paise)</span>
               <input
                 type="number"
                 min={100}
                 value={flashPrice}
                 onChange={(e) => setFlashPrice(e.target.value)}
-                className="mt-1 w-full border border-(--paper-edge) bg-(--paper) px-2 py-1.5 font-clause text-xs focus:border-(--ink) focus:outline-none"
+                className={inputCls}
               />
             </label>
           </div>
         )}
 
         {kind === "cross_sell" && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <label className="block">
-              <span className="font-clause text-[11px] uppercase tracking-[0.14em] text-(--ink-soft)">
-                Min Categories
-              </span>
+              <span className={labelCls}>Min Categories</span>
               <input
                 type="number"
                 min={2}
                 value={crossMinCategories}
                 onChange={(e) => setCrossMinCategories(e.target.value)}
-                className="mt-1 w-full border border-(--paper-edge) bg-(--paper) px-2 py-1.5 font-clause text-xs focus:border-(--ink) focus:outline-none"
+                className={inputCls}
               />
             </label>
             <label className="block">
-              <span className="font-clause text-[11px] uppercase tracking-[0.14em] text-(--ink-soft)">
-                Discount %
-              </span>
+              <span className={labelCls}>Discount %</span>
               <input
                 type="number"
                 min={1}
                 max={90}
                 value={crossDiscount}
                 onChange={(e) => setCrossDiscount(e.target.value)}
-                className="mt-1 w-full border border-(--paper-edge) bg-(--paper) px-2 py-1.5 font-clause text-xs focus:border-(--ink) focus:outline-none"
+                className={inputCls}
               />
             </label>
           </div>
@@ -598,89 +561,66 @@ function CampaignForm({
         <div className="double-rule" aria-hidden="true" />
 
         {/* Time window */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label className="block">
-            <span className="font-clause text-[11px] uppercase tracking-[0.14em] text-(--ink-soft)">
-              Starts At
-            </span>
+            <span className={labelCls}>Starts At</span>
             <input
               type="datetime-local"
               value={startsAt}
               onChange={(e) => setStartsAt(e.target.value)}
-              className="mt-1 w-full border border-(--paper-edge) bg-(--paper) px-2 py-1.5 font-clause text-xs focus:border-(--ink) focus:outline-none"
+              className={inputCls}
             />
           </label>
           <label className="block">
-            <span className="font-clause text-[11px] uppercase tracking-[0.14em] text-(--ink-soft)">
-              Ends At
-            </span>
+            <span className={labelCls}>Ends At</span>
             <input
               type="datetime-local"
               value={endsAt}
               onChange={(e) => setEndsAt(e.target.value)}
-              className="mt-1 w-full border border-(--paper-edge) bg-(--paper) px-2 py-1.5 font-clause text-xs focus:border-(--ink) focus:outline-none"
+              className={inputCls}
             />
           </label>
         </div>
 
         {/* Quick time presets */}
-        <div className="flex gap-1.5">
-          <button
-            type="button"
-            onClick={() => setEndsAt(inMinutes(5).slice(0, 16))}
-            className="press border border-(--paper-edge) px-2 py-0.5 font-clause text-[10px] text-(--ink-soft) hover:border-(--ink)"
-          >
-            5 min
-          </button>
-          <button
-            type="button"
-            onClick={() => setEndsAt(inMinutes(30).slice(0, 16))}
-            className="press border border-(--paper-edge) px-2 py-0.5 font-clause text-[10px] text-(--ink-soft) hover:border-(--ink)"
-          >
-            30 min
-          </button>
-          <button
-            type="button"
-            onClick={() => setEndsAt(inDays(1).slice(0, 16))}
-            className="press border border-(--paper-edge) px-2 py-0.5 font-clause text-[10px] text-(--ink-soft) hover:border-(--ink)"
-          >
-            1 day
-          </button>
-          <button
-            type="button"
-            onClick={() => setEndsAt(inDays(7).slice(0, 16))}
-            className="press border border-(--paper-edge) px-2 py-0.5 font-clause text-[10px] text-(--ink-soft) hover:border-(--ink)"
-          >
-            7 days
-          </button>
-          <button
-            type="button"
-            onClick={() => setEndsAt(inDays(30).slice(0, 16))}
-            className="press border border-(--paper-edge) px-2 py-0.5 font-clause text-[10px] text-(--ink-soft) hover:border-(--ink)"
-          >
-            30 days
-          </button>
+        <div className="flex flex-wrap gap-1.5">
+          {([
+            ["5 min", inMinutes(5).slice(0, 16)],
+            ["30 min", inMinutes(30).slice(0, 16)],
+            ["1 day", inDays(1).slice(0, 16)],
+            ["7 days", inDays(7).slice(0, 16)],
+            ["30 days", inDays(30).slice(0, 16)],
+          ] as const).map(([label, endStr]) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => setEndsAt(endStr)}
+              className="press min-h-6 border border-(--paper-edge) px-2.5 py-1 font-clause text-[11px] text-(--ink-soft) hover:border-(--ink)"
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         {error && (
-          <p className="border border-(--seal) bg-(--seal)/8 px-3 py-2 font-clause text-xs text-(--seal)">
+          <p className="border-[1.5px] border-(--bad) bg-(--bad-bg) px-3 py-2 font-clause text-xs text-(--bad-ink)" role="alert">
             {error}
           </p>
         )}
 
         {/* Actions */}
-        <div className="flex gap-2 pt-1">
+        <div className="flex flex-wrap gap-2 pt-1">
           <button
             type="submit"
             disabled={saving || !name.trim()}
-            className="press bg-(--seal) px-4 py-1.5 font-clause text-xs font-bold uppercase tracking-wider text-(--paper) hover:bg-(--seal)/90 disabled:opacity-50"
+            className="press border-[1.5px] border-(--ink) bg-(--ink) px-4 py-1.5 font-clause text-xs font-bold uppercase tracking-wider text-(--paper) hover:bg-(--ink-soft) disabled:opacity-50"
           >
-            {saving ? "Saving..." : editing ? "Update Campaign" : "Create Campaign"}
+            {saving ? "Saving…" : editing ? "Update campaign" : "Create campaign"}
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="press border border-(--paper-edge) px-4 py-1.5 font-clause text-xs font-bold uppercase tracking-wider text-(--ink-soft) hover:border-(--ink)"
+            className="press border-[1.5px] border-(--paper-edge) bg-transparent px-4 py-1.5 font-clause text-xs font-bold uppercase tracking-wider text-(--ink-soft) hover:border-(--ink)"
           >
             Cancel
           </button>

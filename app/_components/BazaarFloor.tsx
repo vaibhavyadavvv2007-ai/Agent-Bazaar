@@ -136,6 +136,9 @@ type Receipt = {
   meta: string[];
   /** Optional upright status plate (color + word, never color alone). */
   plate?: { text: string; tone: "ok" | "warn" | "bad" | "info" };
+  /** Cross-page link — the audit file or the queue for this event. */
+  href?: string;
+  hrefLabel?: string;
   ago: string;
 };
 
@@ -191,6 +194,7 @@ export function Street() {
         playSound("bell");
         toast("Summons — human review required", {
           description: "An agent's transaction was paused for your review.",
+          action: { label: "Answer it →", onClick: () => window.location.assign("/approvals") },
           className: "font-clause text-[12px] border-2 border-(--warn) bg-(--paper) text-(--ink) rounded-none shadow-[0_4px_16px_rgba(28,26,23,0.18)] p-3",
           style: { fontFamily: "'Courier Prime', monospace" },
         });
@@ -465,6 +469,15 @@ export function BillBook() {
             {r.meta.filter(Boolean).map((m, i) => (
               <div key={i} className="fig mt-0.5">{m}</div>
             ))}
+            {/* Row 6 — the cross-page link: the queue, or this transaction's file */}
+            {r.href && (
+              <a
+                href={r.href}
+                className="mt-1 inline-block min-h-6 font-clause text-[11px] font-bold uppercase tracking-wider text-(--rule-blue) underline decoration-(--rule-blue)/50 underline-offset-2 hover:text-(--ink)"
+              >
+                {r.hrefLabel ?? "view the file →"}
+              </a>
+            )}
           </li>
         ))}
       </ol>
@@ -561,15 +574,15 @@ function eventToReceipt(e: LiveEvent): Receipt | null {
     case "mandate.signed.payment":
       return { key: e.id!, event: "Payment mandate signed", detail: ["signed by the merchant"], meta: [`hash ${short(e.payload)}`], ago };
     case "policy.allow":
-      return { key: e.id!, event: "Policy allowed", amount: paiseLine, detail: [], meta: [], plate: { text: "allowed", tone: "ok" }, ago };
+      return { key: e.id!, event: "Policy allowed", amount: paiseLine, detail: [], meta: [], plate: { text: "allowed", tone: "ok" }, ago, href: fileHref(e), hrefLabel: "the transaction file →" };
     case "policy.gate":
-      return { key: e.id!, event: "Held for human review", amount: paiseLine, detail: [firstReason(e) ?? ""], meta: [], plate: { text: "held", tone: "warn" }, ago };
+      return { key: e.id!, event: "Held for human review", amount: paiseLine, detail: [firstReason(e) ?? ""], meta: [], plate: { text: "held", tone: "warn" }, ago, href: "/approvals", hrefLabel: "answer the queue →" };
     case "policy.deny":
-      return { key: e.id!, event: "Denied by policy", amount: paiseLine, detail: [firstReason(e) ?? ""], meta: [], plate: { text: "denied", tone: "bad" }, ago };
+      return { key: e.id!, event: "Denied by policy", amount: paiseLine, detail: [firstReason(e) ?? ""], meta: [], plate: { text: "denied", tone: "bad" }, ago, href: fileHref(e), hrefLabel: "the transaction file →" };
     case "payment.checkout_open":
       return { key: e.id!, event: "Checkout open", amount: paiseLine, detail: [`attempt ${String(e.payload?.attempt ?? 1)}`], meta: [`order ${shortId(String(e.payload?.rzp_order_id ?? ""))}`], ago };
     case "payment.captured":
-      return { key: e.id!, event: "Payment captured", amount: paiseLine, detail: [], meta: [`order ${shortId(String(e.payload?.rzp_order_id ?? ""))}`], plate: { text: "captured", tone: "ok" }, ago };
+      return { key: e.id!, event: "Payment captured", amount: paiseLine, detail: [], meta: [`order ${shortId(String(e.payload?.rzp_order_id ?? ""))}`], plate: { text: "captured", tone: "ok" }, ago, href: fileHref(e), hrefLabel: "the receipt →" };
     case "payment.failed":
       return { key: e.id!, event: "Payment failed", amount: paiseLine, detail: [String(e.payload?.failure_reason ?? "").slice(0, 46)], meta: [], plate: { text: "failed", tone: "bad" }, ago };
     case "payment.recovered":
@@ -589,6 +602,11 @@ function eventToReceipt(e: LiveEvent): Receipt | null {
 
 function short(payload: Record<string, unknown> | undefined): string {
   return String(payload?.hash ?? "").slice(0, 10);
+}
+/** The audit-file deep link for an event, when it names a mandate. */
+function fileHref(e: LiveEvent): string | undefined {
+  const id = e.payload?.mandate_id ?? e.payload?.payment_row_id;
+  return id ? `/receipts/${String(id)}` : undefined;
 }
 function shortId(id: string): string {
   return id.length > 16 ? `${id.slice(0, 16)}…` : id;
